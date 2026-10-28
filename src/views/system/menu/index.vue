@@ -7,9 +7,6 @@
             <el-form-item label="菜单名称" prop="menuName">
               <el-input v-model="queryParams.menuName" placeholder="请输入菜单名称" clearable @keyup.enter="handleQuery" />
             </el-form-item>
-            <el-form-item label="所属子应用" prop="appId">
-              <el-input v-model="queryParams.appId" placeholder="留空表示平台通用菜单（所有应用可见）" clearable @keyup.enter="handleQuery" />
-            </el-form-item>
             <el-form-item label="状态" prop="status">
               <el-select v-model="queryParams.status" placeholder="菜单状态" clearable>
                 <el-option v-for="dict in sys_normal_disable" :key="dict.value" :label="dict.label" :value="dict.value" />
@@ -60,11 +57,6 @@
         <el-table-column prop="orderNum" label="排序" width="60"></el-table-column>
         <el-table-column prop="perms" label="权限标识" :show-overflow-tooltip="true"></el-table-column>
         <el-table-column prop="component" label="组件路径" :show-overflow-tooltip="true"></el-table-column>
-        <el-table-column label="所属应用" width="140" :show-overflow-tooltip="true">
-          <template #default="scope">
-            <span>{{ scope.row.appId || '平台通用' }}</span>
-          </template>
-        </el-table-column>
         <el-table-column prop="status" label="状态" width="80">
           <template #default="scope">
             <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
@@ -129,11 +121,6 @@
           <el-col :span="12">
             <el-form-item label="显示排序" prop="orderNum">
               <el-input-number v-model="form.orderNum" controls-position="right" :min="0" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="所属子应用" prop="appId">
-              <el-input v-model="form.appId" placeholder="留空表示平台通用菜单（所有应用可见）" />
             </el-form-item>
           </el-col>
           <el-col v-if="form.menuType !== 'F'" :span="12">
@@ -325,15 +312,6 @@ interface MenuOptionsType {
   children: MenuOptionsType[] | undefined;
 }
 
-/** 所属子应用（appId）：留空表示平台通用菜单 */
-interface MenuFormExt extends MenuForm {
-  appId?: string;
-}
-
-interface MenuQueryExt extends MenuQuery {
-  appId?: string;
-}
-
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 const { sys_show_hide, sys_normal_disable } = toRefs<any>(proxy?.useDict('sys_show_hide', 'sys_normal_disable'));
 
@@ -351,7 +329,7 @@ const dialog = reactive<DialogOption>({
 
 const queryFormRef = ref<ElFormInstance>();
 const menuFormRef = ref<ElFormInstance>();
-const initFormData = {
+const initFormData: MenuForm = {
   path: '',
   menuId: undefined,
   parentId: 0,
@@ -362,26 +340,36 @@ const initFormData = {
   isFrame: '1',
   isCache: '0',
   visible: '0',
-  status: '0',
-  appId: ''
+  status: '0'
 };
-const data = reactive<PageData<MenuFormExt, MenuQueryExt>>({
+const data = reactive<PageData<MenuForm, MenuQuery>>({
   form: { ...initFormData },
   queryParams: {
     menuName: undefined,
-    status: undefined,
-    appId: undefined
+    status: undefined
   },
   rules: {
     menuName: [{ required: true, message: '菜单名称不能为空', trigger: 'blur' }],
     orderNum: [{ required: true, message: '菜单顺序不能为空', trigger: 'blur' }],
-    path: [{ required: true, message: '路由地址不能为空', trigger: 'blur' }]
+    path: [{ required: true, message: '路由地址不能为空', trigger: 'blur' }],
+    component: [
+      {
+        validator: (rule: any, value: any, callback: any) => {
+          if (form.value.menuType === 'C' && form.value.isFrame !== '0' && (!value || !value.trim())) {
+            callback(new Error('组件路径不能为空'));
+          } else {
+            callback();
+          }
+        },
+        trigger: 'blur'
+      }
+    ]
   }
 });
 
 const menuTableRef = ref<ElTableInstance>();
 
-const { queryParams, form, rules } = toRefs<PageData<MenuFormExt, MenuQueryExt>>(data);
+const { queryParams, form, rules } = toRefs<PageData<MenuForm, MenuQuery>>(data);
 
 /** 获取子菜单列表 */
 const getChildrenList = async (row: any, treeNode: unknown, resolve: (data: any[]) => void) => {
