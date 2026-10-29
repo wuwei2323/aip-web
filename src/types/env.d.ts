@@ -20,6 +20,8 @@ interface ImportMetaEnv {
   VITE_APP_CLIENT_ID: string;
   VITE_APP_WEBSOCKET: string;
   VITE_APP_SSE: string;
+  VITE_APP_SSO_ENABLED: string;
+  VITE_APP_SSO_CALLBACK_PATH: string;
 }
 interface ImportMeta {
   readonly env: ImportMetaEnv;

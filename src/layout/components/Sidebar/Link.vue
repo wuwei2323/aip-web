@@ -5,17 +5,22 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { isExternal } from '@/utils/validate';
 
 const props = defineProps({
   to: {
     type: [String, Object],
     required: true
+  },
+  appId: {
+    type: String,
+    default: ''
   }
 });
 
 const isExt = computed(() => {
-  return isExternal(props.to as string);
+  return isExternal(props.to as string) || Boolean(props.appId);
 });
 
 const type = computed(() => {
@@ -27,8 +32,9 @@ const type = computed(() => {
 
 function linkProps() {
   if (isExt.value) {
+    const targetUrl = typeof props.to === 'string' ? props.to : (props.to as any)?.path;
     return {
-      href: props.to,
+      href: targetUrl,
       target: '_blank',
       rel: 'noopener'
     };

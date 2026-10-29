@@ -1,6 +1,6 @@
 import { to } from 'await-to-js';
 import { getToken, removeToken, setToken } from '@/utils/auth';
-import { login as loginApi, logout as logoutApi, getInfo as getUserInfo } from '@/api/login';
+import { login as loginApi, logout as logoutApi, getInfo as getUserInfo, exchangeSsoTicket } from '@/api/login';
 import { LoginData } from '@/api/types';
 import defAva from '@/assets/images/profile.jpg';
 import { defineStore } from 'pinia';
@@ -16,6 +16,17 @@ export const useUserStore = defineStore('user', () => {
   const roles = ref<Array<string>>([]); // 用户角色编码集合 → 判断路由权限
   const permissions = ref<Array<string>>([]); // 用户权限编码集合 → 判断按钮权限
 
+  const cleanSession = () => {
+    token.value = '';
+    roles.value = [];
+    permissions.value = [];
+    name.value = '';
+    nickname.value = '';
+    userId.value = '';
+    tenantId.value = '';
+    removeToken();
+  };
+
   /**
    * 登录
    * @param userInfo
@@ -23,6 +34,21 @@ export const useUserStore = defineStore('user', () => {
    */
   const login = async (userInfo: LoginData): Promise<void> => {
     const [err, res] = await to(loginApi(userInfo));
+    if (res) {
+      const data = res.data;
+      setToken(data.access_token);
+      token.value = data.access_token;
+      return Promise.resolve();
+    }
+    return Promise.reject(err);
+  };
+
+  /**
+   * SSO Ticket 换票
+   */
+  const ssoExchange = async (ticket: string): Promise<void> => {
+    cleanSession();
+    const [err, res] = await to(exchangeSsoTicket(ticket));
     if (res) {
       const data = res.data;
       setToken(data.access_token);
@@ -59,11 +85,13 @@ export const useUserStore = defineStore('user', () => {
 
   // 注销
   const logout = async (): Promise<void> => {
-    await logoutApi();
-    token.value = '';
-    roles.value = [];
-    permissions.value = [];
-    removeToken();
+    if (import.meta.env.VITE_APP_SSO_ENABLED === 'true') {
+      const { logoutSso } = await import('@/utils/sso');
+      await logoutSso();
+    } else {
+      await logoutApi();
+      cleanSession();
+    }
   };
 
   const setAvatar = (value: string) => {
@@ -79,6 +107,8 @@ export const useUserStore = defineStore('user', () => {
     roles,
     permissions,
     login,
+    ssoExchange,
+    cleanSession,
     getInfo,
     logout,
     setAvatar

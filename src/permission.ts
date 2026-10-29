@@ -9,13 +9,23 @@ import { useUserStore } from '@/store/modules/user';
 import { useSettingsStore } from '@/store/modules/settings';
 import { usePermissionStore } from '@/store/modules/permission';
 import { ElMessage } from 'element-plus/es';
+import { isSsoEnabled, startSsoLogin, checkSsoSessionDebounced } from '@/utils/sso';
 
 NProgress.configure({ showSpinner: false });
-const whiteList = ['/login', '/register', '/social-callback', '/register*', '/register/*'];
+const whiteList = ['/login', '/register', '/social-callback', '/register*', '/register/*', '/sso/callback', '/sso/change-password', '/sso/*'];
 
 const isWhiteList = (path: string) => {
   return whiteList.some((pattern) => isPathMatch(pattern, path));
 };
+
+// 页面可见性探活 (SSO 焦点探活)
+if (typeof window !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      checkSsoSessionDebounced();
+    }
+  });
+}
 
 router.beforeEach(async (to, from, next) => {
   NProgress.start();
@@ -28,26 +38,30 @@ router.beforeEach(async (to, from, next) => {
     } else if (isWhiteList(to.path)) {
       next();
     } else {
-      if (useUserStore().roles.length === 0) {
+      const hasRoles = useUserStore().roles.length > 0;
+      const hasRoutes = usePermissionStore().sidebarRouters.length > 0;
+      if (!hasRoles || !hasRoutes) {
         isRelogin.show = true;
-        // 判断当前用户是否已拉取完user_info信息
-        const [err] = await tos(useUserStore().getInfo());
-        if (err) {
-          await useUserStore().logout();
-          ElMessage.error(err);
-          next({ path: '/' });
-        } else {
-          isRelogin.show = false;
-          const accessRoutes = await usePermissionStore().generateRoutes();
-          // 根据roles权限生成可访问的路由表
-          accessRoutes.forEach((route) => {
-            if (!isHttp(route.path)) {
-              router.addRoute(route); // 动态添加可访问路由表
-            }
-          });
-          // @ts-expect-error hack方法 确保addRoutes已完成
-          next({ path: to.path, replace: true, params: to.params, query: to.query, hash: to.hash, name: to.name as string }); // hack方法 确保addRoutes已完成
+        if (!hasRoles) {
+          // 判断当前用户是否已拉取完user_info信息
+          const [err] = await tos(useUserStore().getInfo());
+          if (err) {
+            await useUserStore().logout();
+            ElMessage.error(err);
+            next({ path: '/' });
+            return;
+          }
         }
+        isRelogin.show = false;
+        const accessRoutes = await usePermissionStore().generateRoutes();
+        // 根据roles权限生成可访问的路由表
+        accessRoutes.forEach((route) => {
+          if (!isHttp(route.path)) {
+            router.addRoute(route); // 动态添加可访问路由表
+          }
+        });
+        // @ts-expect-error hack方法 确保addRoutes已完成
+        next({ path: to.path, replace: true, params: to.params, query: to.query, hash: to.hash, name: to.name as string }); // hack方法 确保addRoutes已完成
       } else {
         next();
       }
@@ -57,6 +71,9 @@ router.beforeEach(async (to, from, next) => {
     if (isWhiteList(to.path)) {
       // 在免登录白名单，直接进入
       next();
+    } else if (isSsoEnabled()) {
+      await startSsoLogin(to.fullPath);
+      NProgress.done();
     } else {
       const redirect = encodeURIComponent(to.fullPath || '/');
       next(`/login?redirect=${redirect}`); // 否则全部重定向到登录页

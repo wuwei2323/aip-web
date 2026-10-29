@@ -48,6 +48,16 @@ export const constantRoutes: RouteRecordRaw[] = [
     hidden: true
   },
   {
+    path: '/sso/callback',
+    component: () => import('@/views/sso/callback.vue'),
+    hidden: true
+  },
+  {
+    path: '/sso/change-password',
+    component: () => import('@/views/sso/change-password.vue'),
+    hidden: true
+  },
+  {
     path: '/register',
     component: () => import('@/views/register.vue'),
     hidden: true

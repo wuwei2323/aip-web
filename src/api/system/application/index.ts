@@ -1,87 +1,80 @@
 import request from '@/utils/request';
 import { AxiosPromise } from 'axios';
-import { ClientSecretVo, SysApplicationBo, SysApplicationQuery, SysApplicationVo } from '@/api/system/application/types';
+import { ApplicationQuery, ApplicationVO, ApplicationForm } from './types';
 
 /**
- * 查询子应用管理列表
- * @param query
+ * 查询应用列表
  */
-export const listApplication = (query?: SysApplicationQuery): AxiosPromise<SysApplicationVo[]> => {
+export function listApplication(query?: ApplicationQuery): AxiosPromise<TableDataInfo<ApplicationVO>> {
   return request({
     url: '/system/application/list',
     method: 'get',
     params: query
   });
-};
+}
 
 /**
- * 查询子应用管理详细
- * @param id
+ * 查询应用详细
  */
-export const getApplication = (id: string | number): AxiosPromise<SysApplicationVo> => {
+export function getApplication(id: string | number): AxiosPromise<ApplicationVO> {
   return request({
     url: '/system/application/' + id,
     method: 'get'
   });
-};
+}
 
 /**
- * 新增子应用管理
- * 响应 data 为生成的明文密钥，仅此一次返回。
- * @param data
+ * 新增应用
  */
-export const addApplication = (data: SysApplicationBo): AxiosPromise<ClientSecretVo> => {
+export function addApplication(data: ApplicationForm): AxiosPromise<ApplicationVO> {
   return request({
     url: '/system/application',
     method: 'post',
     data: data
   });
-};
+}
 
 /**
- * 修改子应用管理（不改变密钥）
- * @param data
+ * 修改应用
  */
-export const updateApplication = (data: SysApplicationBo): AxiosPromise<void> => {
+export function updateApplication(data: ApplicationForm): AxiosPromise<void> {
   return request({
     url: '/system/application',
     method: 'put',
     data: data
   });
-};
+}
 
 /**
- * 修改子应用状态
- * @param id 子应用主键
- * @param status 状态（0正常 1停用）
+ * 修改应用状态
  */
-export const changeApplicationStatus = (id: string | number, status: string): AxiosPromise<void> => {
+export function changeApplicationStatus(id: string | number, status: string): AxiosPromise<void> {
   return request({
     url: '/system/application/changeStatus',
     method: 'put',
-    data: { id, status }
+    data: {
+      id,
+      status
+    }
   });
-};
+}
 
 /**
- * 重置子应用密钥（旧密钥立即失效）
- * 响应 data 为新的明文密钥，仅此一次返回。
- * @param id
+ * 重置应用密钥
  */
-export const resetApplicationSecret = (id: string | number): AxiosPromise<ClientSecretVo> => {
+export function resetApplicationSecret(id: string | number): AxiosPromise<string> {
   return request({
-    url: `/system/application/${id}/resetSecret`,
-    method: 'post'
+    url: '/system/application/' + id + '/resetSecret',
+    method: 'put'
   });
-};
+}
 
 /**
- * 删除子应用管理
- * @param id
+ * 删除应用
  */
-export const delApplication = (id: string | number | Array<string | number>): AxiosPromise<void> => {
+export function delApplication(ids: string | number | (string | number)[]): AxiosPromise<void> {
   return request({
-    url: '/system/application/' + id,
+    url: '/system/application/' + ids,
     method: 'delete'
   });
-};
+}

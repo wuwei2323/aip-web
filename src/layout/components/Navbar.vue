@@ -175,7 +175,8 @@ const logout = async () => {
     cancelButtonText: '取消',
     type: 'warning'
   } as ElMessageBoxOptions);
-  userStore.logout().then(() => {
+  await userStore.logout();
+  if (import.meta.env.VITE_APP_SSO_ENABLED !== 'true') {
     router.replace({
       path: '/login',
       query: {
@@ -183,7 +184,7 @@ const logout = async () => {
       }
     });
     proxy?.$tab.closeAllPage();
-  });
+  }
 };
 
 const emits = defineEmits(['setLayout']);

@@ -105,7 +105,7 @@ service.interceptors.request.use(
 
 // 响应拦截器
 service.interceptors.response.use(
-  (res: AxiosResponse) => {
+  async (res: AxiosResponse) => {
     if (import.meta.env.VITE_APP_ENCRYPT === 'true') {
       // 加密后的 AES 秘钥
       const keyStr = res.headers[encryptHeader];
@@ -131,6 +131,14 @@ service.interceptors.response.use(
       return res.data;
     }
     if (code === 401) {
+      if (import.meta.env.VITE_APP_SSO_ENABLED === 'true') {
+        const { startSsoLogin } = await import('@/utils/sso');
+        const { removeToken } = await import('@/utils/auth');
+        removeToken();
+        const currentPath = router.currentRoute.value?.fullPath || '/';
+        startSsoLogin(currentPath);
+        return Promise.reject('会话已失效，正在跳转统一认证...');
+      }
       // prettier-ignore
       if (!isRelogin.show) {
         isRelogin.show = true;
@@ -166,7 +174,15 @@ service.interceptors.response.use(
       return Promise.resolve(res.data);
     }
   },
-  (error: any) => {
+  async (error: any) => {
+    if (error.response?.status === 401 && import.meta.env.VITE_APP_SSO_ENABLED === 'true') {
+      const { startSsoLogin } = await import('@/utils/sso');
+      const { removeToken } = await import('@/utils/auth');
+      removeToken();
+      const currentPath = router.currentRoute.value?.fullPath || '/';
+      startSsoLogin(currentPath);
+      return Promise.reject('会话已失效，正在跳转统一认证...');
+    }
     let { message } = error;
     if (message == 'Network Error') {
       message = '后端接口连接异常';

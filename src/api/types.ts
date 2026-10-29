@@ -57,3 +57,18 @@ export interface TenantInfo {
   tenantEnabled: boolean;
   voList: TenantVO[];
 }
+
+export interface SsoAuthorizeResult {
+  authorizeUrl: string;
+}
+
+export interface SsoLogoutResult {
+  logoutUrl: string;
+}
+
+export interface SsoChangePasswordForm {
+  ticket?: string;
+  oldPassword?: string;
+  newPassword: string;
+  confirmPassword: string;
+}

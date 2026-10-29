@@ -111,8 +111,8 @@ const setVisibleNumber = () => {
 const handleSelect = (key: string) => {
   currentIndex.value = key;
   const route = routers.value.find((item) => item.path === key);
-  if (isHttp(key)) {
-    // http(s):// 路径新窗口打开
+  if (isHttp(key) || (route?.meta as any)?.appId) {
+    // http(s):// 路径或关联子应用新窗口打开
     window.open(key, '_blank');
   } else if (!route || !route.children) {
     // 没有子路由路径内部打开

@@ -57,6 +57,12 @@
         <el-table-column prop="orderNum" label="排序" width="60"></el-table-column>
         <el-table-column prop="perms" label="权限标识" :show-overflow-tooltip="true"></el-table-column>
         <el-table-column prop="component" label="组件路径" :show-overflow-tooltip="true"></el-table-column>
+        <el-table-column prop="appId" label="关联应用" align="center" :show-overflow-tooltip="true" width="120">
+          <template #default="scope">
+            <el-tag v-if="scope.row.appId" type="success" size="small">{{ scope.row.appId }}</el-tag>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="status" label="状态" width="80">
           <template #default="scope">
             <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
@@ -168,6 +174,32 @@
                 </span>
               </template>
               <el-input v-model="form.component" placeholder="请输入组件路径" />
+            </el-form-item>
+          </el-col>
+          <el-col v-if="form.menuType === 'C'" :span="12">
+            <el-form-item prop="appId">
+              <template #label>
+                <span>
+                  <el-tooltip content="仅类型为菜单时可关联应用。选择后点击菜单将直接跳转到该子应用入口；不选择则为普通菜单" placement="top">
+                    <el-icon><question-filled /></el-icon>
+                  </el-tooltip>
+                  关联应用
+                </span>
+              </template>
+              <el-select
+                v-model="form.appId"
+                placeholder="请选择关联应用"
+                clearable
+                filterable
+                @change="handleApplicationChange"
+              >
+                <el-option
+                  v-for="app in applicationOptions"
+                  :key="app.appId"
+                  :label="`${app.appName} (${app.appId})`"
+                  :value="app.appId"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col v-if="form.menuType !== 'M'" :span="12">
@@ -305,6 +337,8 @@
 import { addMenu, cascadeDelMenu, delMenu, getMenu, listMenu, updateMenu } from '@/api/system/menu';
 import { MenuForm, MenuQuery, MenuVO } from '@/api/system/menu/types';
 import { MenuTypeEnum } from '@/enums/MenuTypeEnum';
+import { listApplication } from '@/api/system/application';
+import { ApplicationVO } from '@/api/system/application/types';
 
 interface MenuOptionsType {
   menuId: number;
@@ -321,6 +355,7 @@ const menuExpandMap = ref({});
 const loading = ref(true);
 const showSearch = ref(true);
 const menuOptions = ref<MenuOptionsType[]>([]);
+const applicationOptions = ref<ApplicationVO[]>([]);
 
 const dialog = reactive<DialogOption>({
   visible: false,
@@ -340,7 +375,8 @@ const initFormData: MenuForm = {
   isFrame: '1',
   isCache: '0',
   visible: '0',
-  status: '0'
+  status: '0',
+  appId: undefined
 };
 const data = reactive<PageData<MenuForm, MenuQuery>>({
   form: { ...initFormData },
@@ -541,8 +577,28 @@ const submitDeleteForm = async () => {
   deleteDialog.visible = false;
 };
 
+const getApplicationOptions = async () => {
+  try {
+    const res = await listApplication({ pageNum: 1, pageSize: 1000 });
+    applicationOptions.value = res.rows || [];
+  } catch (e) {
+    console.warn('获取应用列表失败:', e);
+  }
+};
+
+const handleApplicationChange = (appId: string) => {
+  if (!appId) return;
+  const app = applicationOptions.value.find((item) => item.appId === appId);
+  if (app && app.entryUrl) {
+    if (!form.value.path || form.value.path === '') {
+      form.value.path = app.entryUrl;
+    }
+  }
+};
+
 onMounted(() => {
   getList();
+  getApplicationOptions();
 });
 </script>
 
