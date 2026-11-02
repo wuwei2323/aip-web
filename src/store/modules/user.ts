@@ -1,6 +1,6 @@
 import { to } from 'await-to-js';
 import { getToken, removeToken, setToken } from '@/utils/auth';
-import { login as loginApi, logout as logoutApi, getInfo as getUserInfo, exchangeSsoTicket } from '@/api/login';
+import { login as loginApi, logout as logoutApi, getInfo as getUserInfo, exchangeSsoCode } from '@/api/login';
 import { LoginData } from '@/api/types';
 import defAva from '@/assets/images/profile.jpg';
 import { defineStore } from 'pinia';
@@ -44,11 +44,11 @@ export const useUserStore = defineStore('user', () => {
   };
 
   /**
-   * SSO Ticket 换票
+   * 凭 Keycloak 授权码 code 兑换会话
    */
-  const ssoExchange = async (ticket: string): Promise<void> => {
+  const ssoLoginByCode = async (code: string, redirectUri: string): Promise<void> => {
     cleanSession();
-    const [err, res] = await to(exchangeSsoTicket(ticket));
+    const [err, res] = await to(exchangeSsoCode({ code, redirectUri }));
     if (res) {
       const data = res.data;
       setToken(data.access_token);
@@ -107,7 +107,7 @@ export const useUserStore = defineStore('user', () => {
     roles,
     permissions,
     login,
-    ssoExchange,
+    ssoLoginByCode,
     cleanSession,
     getInfo,
     logout,

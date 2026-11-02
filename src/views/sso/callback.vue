@@ -38,31 +38,54 @@ const statusTitle = ref('正在完成统一身份认证');
 const errorMsg = ref('');
 
 const handleCallback = async () => {
-  const ticket = route.query.ticket as string;
-  const redirect = route.query.redirect as string;
+  const code = route.query.code as string;
+  const state = route.query.state as string;
+  const error = route.query.error as string;
+  const errorDescription = route.query.error_description as string;
 
-  if (!ticket) {
+  if (error) {
     loading.value = false;
     statusTitle.value = '认证失败';
-    errorMsg.value = '未获取到有效的认证凭证 (Ticket 缺失)';
+    errorMsg.value = errorDescription || error || '统一身份认证失败';
     return;
   }
 
-  try {
-    statusTitle.value = '正在兑换会话凭证...';
-    await userStore.ssoExchange(ticket);
+  // 方案 B：优先使用 Keycloak 授权码 code 兑换 Token
+  if (code) {
+    const savedState = sessionStorage.getItem('sso_state');
+    sessionStorage.removeItem('sso_state');
+    if (state && savedState && state !== savedState) {
+      loading.value = false;
+      statusTitle.value = '认证失败';
+      errorMsg.value = '认证状态已失效或存在跨站风险，请重新登录';
+      return;
+    }
 
-    loading.value = false;
-    statusTitle.value = '登录成功，正在跳转...';
+    try {
+      statusTitle.value = '正在兑换会话凭证...';
+      const redirectUri = window.location.origin + route.path;
+      await userStore.ssoLoginByCode(code, redirectUri);
 
-    const target = sanitizeRedirect(redirect);
-    await router.replace(target);
-  } catch (err: any) {
-    loading.value = false;
-    statusTitle.value = '统一认证登录失败';
-    errorMsg.value = err?.message || '票据兑换失败或已失效，请重新登录';
-    console.error('SSO callback exchange failed:', err);
+      loading.value = false;
+      statusTitle.value = '登录成功，正在跳转...';
+
+      const targetPath = sessionStorage.getItem('sso_target_path') || (route.query.redirect as string) || '/';
+      sessionStorage.removeItem('sso_target_path');
+      const target = sanitizeRedirect(targetPath);
+      await router.replace(target);
+      return;
+    } catch (err: any) {
+      loading.value = false;
+      statusTitle.value = '统一认证登录失败';
+      errorMsg.value = err?.message || '授权码兑换失败或已失效，请重新登录';
+      console.error('SSO callback code exchange failed:', err);
+      return;
+    }
   }
+
+  loading.value = false;
+  statusTitle.value = '认证失败';
+  errorMsg.value = '未获取到有效的授权码凭证 (Code 缺失)';
 };
 
 const handleRetry = async () => {

@@ -128,9 +128,9 @@ export function getSsoAuthorizeUrl(redirect?: string): AxiosPromise<SsoAuthorize
 }
 
 /**
- * 凭 SSO ticket 兑换平台 Token
+ * 凭 Keycloak 授权码 code 兑换平台 Token (统一走 /auth/sso/exchange)
  */
-export function exchangeSsoTicket(ticket: string): AxiosPromise<LoginResult> {
+export function exchangeSsoCode(data: { code: string; redirectUri?: string }): AxiosPromise<LoginResult> {
   return request({
     url: '/auth/sso/exchange',
     headers: {
@@ -138,7 +138,7 @@ export function exchangeSsoTicket(ticket: string): AxiosPromise<LoginResult> {
       repeatSubmit: false
     },
     method: 'post',
-    data: { ticket }
+    data
   });
 }
 

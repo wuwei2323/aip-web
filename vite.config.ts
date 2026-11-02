@@ -23,12 +23,20 @@ export default defineConfig(({ mode, command }) => {
       port: Number(env.VITE_APP_PORT),
       open: true,
       allowedHosts: ['fast9.shenzhuo.vip'],
+      cors: {
+        origin: true,
+        credentials: true
+      },
       proxy: {
         [env.VITE_APP_BASE_API]: {
           target: 'http://localhost:8080',
           changeOrigin: true,
           ws: true,
           rewrite: (path) => path.replace(new RegExp('^' + env.VITE_APP_BASE_API), '')
+        },
+        '/captcha': {
+          target: 'http://localhost:8080',
+          changeOrigin: true
         }
       }
     },
