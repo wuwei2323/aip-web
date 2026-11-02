@@ -1,6 +1,6 @@
 import request from '@/utils/request';
 import { AxiosPromise } from 'axios';
-import { LoginData, LoginResult, VerifyCodeResult, TenantInfo, SsoAuthorizeResult, SsoLogoutResult, SsoChangePasswordForm } from './types';
+import { LoginData, LoginResult, VerifyCodeResult, TenantInfo, SsoLogoutResult, SsoChangePasswordForm, SsoExchangeParams } from './types';
 import { UserInfo } from '@/api/system/user/types';
 
 // pc端固定客户端授权id
@@ -113,26 +113,11 @@ export function getTenantList(isToken: boolean): AxiosPromise<TenantInfo> {
 }
 
 /**
- * 获取 Keycloak 授权登录 URL
+ * 凭 Keycloak 授权码 code 兑换平台 Token (统一走 /auth/sso/callback，支持 PKCE 与 Nonce 校验)
  */
-export function getSsoAuthorizeUrl(redirect?: string): AxiosPromise<SsoAuthorizeResult> {
+export function exchangeSsoCode(data: SsoExchangeParams): AxiosPromise<LoginResult> {
   return request({
-    url: '/auth/sso/authorize',
-    headers: {
-      isToken: false,
-      repeatSubmit: false
-    },
-    method: 'get',
-    params: { redirect }
-  });
-}
-
-/**
- * 凭 Keycloak 授权码 code 兑换平台 Token (统一走 /auth/sso/exchange)
- */
-export function exchangeSsoCode(data: { code: string; redirectUri?: string }): AxiosPromise<LoginResult> {
-  return request({
-    url: '/auth/sso/exchange',
+    url: '/auth/sso/callback',
     headers: {
       isToken: false,
       repeatSubmit: false

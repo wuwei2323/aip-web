@@ -74,6 +74,7 @@ router.beforeEach(async (to, from, next) => {
     } else if (isSsoEnabled()) {
       await startSsoLogin(to.fullPath);
       NProgress.done();
+      return;
     } else {
       const redirect = encodeURIComponent(to.fullPath || '/');
       next(`/login?redirect=${redirect}`); // 否则全部重定向到登录页

@@ -50,7 +50,7 @@ const handleCallback = async () => {
     return;
   }
 
-  // 方案 B：优先使用 Keycloak 授权码 code 兑换 Token
+  // 凭 Keycloak 授权码 code 兑换 Token
   if (code) {
     const savedState = sessionStorage.getItem('sso_state');
     sessionStorage.removeItem('sso_state');
@@ -61,10 +61,32 @@ const handleCallback = async () => {
       return;
     }
 
+    const codeVerifier = sessionStorage.getItem('sso_code_verifier') || '';
+    const nonce = sessionStorage.getItem('sso_nonce') || '';
+    const savedCallbackUrl = sessionStorage.getItem('sso_callback_url');
+    sessionStorage.removeItem('sso_code_verifier');
+    sessionStorage.removeItem('sso_nonce');
+    sessionStorage.removeItem('sso_callback_url');
+
+    // 优先取登录发起时记录的准确回调地址，确保与 Keycloak 发起时 100% 一致 (适配子路径部署)
+    const redirectUri = savedCallbackUrl || (window.location.origin + window.location.pathname);
+
     try {
       statusTitle.value = '正在兑换会话凭证...';
-      const redirectUri = window.location.origin + route.path;
-      await userStore.ssoLoginByCode(code, redirectUri);
+      const res = await userStore.ssoLoginByCode({
+        code,
+        codeVerifier,
+        redirectUri,
+        nonce
+      });
+
+      // 首次登录强制改密判断
+      if (res?.password_reset_required && res?.reset_ticket) {
+        const targetPath = sessionStorage.getItem('sso_target_path') || (route.query.redirect as string) || '/';
+        sessionStorage.removeItem('sso_target_path');
+        await router.replace(`/sso/change-password?ticket=${res.reset_ticket}&redirect=${encodeURIComponent(targetPath)}`);
+        return;
+      }
 
       loading.value = false;
       statusTitle.value = '登录成功，正在跳转...';

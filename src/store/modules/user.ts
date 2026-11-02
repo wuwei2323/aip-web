@@ -1,7 +1,7 @@
 import { to } from 'await-to-js';
 import { getToken, removeToken, setToken } from '@/utils/auth';
 import { login as loginApi, logout as logoutApi, getInfo as getUserInfo, exchangeSsoCode } from '@/api/login';
-import { LoginData } from '@/api/types';
+import { LoginData, LoginResult, SsoExchangeParams } from '@/api/types';
 import defAva from '@/assets/images/profile.jpg';
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
@@ -36,24 +36,31 @@ export const useUserStore = defineStore('user', () => {
     const [err, res] = await to(loginApi(userInfo));
     if (res) {
       const data = res.data;
-      setToken(data.access_token);
-      token.value = data.access_token;
+      if (data.access_token) {
+        setToken(data.access_token);
+        token.value = data.access_token;
+      }
       return Promise.resolve();
     }
     return Promise.reject(err);
   };
 
   /**
-   * 凭 Keycloak 授权码 code 兑换会话
+   * 凭 Keycloak 授权码 code 兑换会话 (支持 PKCE 与 Nonce 校验，支持首次强制改密)
    */
-  const ssoLoginByCode = async (code: string, redirectUri: string): Promise<void> => {
+  const ssoLoginByCode = async (params: SsoExchangeParams): Promise<LoginResult> => {
     cleanSession();
-    const [err, res] = await to(exchangeSsoCode({ code, redirectUri }));
+    const [err, res] = await to(exchangeSsoCode(params));
     if (res) {
       const data = res.data;
-      setToken(data.access_token);
-      token.value = data.access_token;
-      return Promise.resolve();
+      if (data.password_reset_required) {
+        return Promise.resolve(data);
+      }
+      if (data.access_token) {
+        setToken(data.access_token);
+        token.value = data.access_token;
+      }
+      return Promise.resolve(data);
     }
     return Promise.reject(err);
   };

@@ -136,7 +136,7 @@ service.interceptors.response.use(
         const { removeToken } = await import('@/utils/auth');
         removeToken();
         const currentPath = router.currentRoute.value?.fullPath || '/';
-        startSsoLogin(currentPath);
+        await startSsoLogin(currentPath);
         return Promise.reject('会话已失效，正在跳转统一认证...');
       }
       // prettier-ignore

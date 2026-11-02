@@ -32,7 +32,21 @@ export interface LoginData {
  * 登录响应
  */
 export interface LoginResult {
-  access_token: string;
+  access_token?: string;
+  expire_in?: number;
+  client_id?: string;
+  password_reset_required?: boolean;
+  reset_ticket?: string;
+}
+
+/**
+ * SSO 授权码换票请求参数
+ */
+export interface SsoExchangeParams {
+  code: string;
+  codeVerifier: string;
+  redirectUri: string;
+  nonce: string;
 }
 
 /**

@@ -1,6 +1,7 @@
-import { getSsoAuthorizeUrl, getSsoLogoutUrl, checkSsoSession } from '@/api/login';
+import { getSsoLogoutUrl, checkSsoSession } from '@/api/login';
 import { removeToken, getToken } from '@/utils/auth';
 import { useUserStore } from '@/store/modules/user';
+import CryptoJS from 'crypto-js';
 
 let isRedirecting = false;
 let lastCheckTime = 0;
@@ -29,6 +30,55 @@ export function sanitizeRedirect(redirect?: string | null): string {
 }
 
 /**
+ * 生成高强度随机字符串 (支持 Web Crypto API，并在非安全上下文/低版本下无缝兜底)
+ */
+export function generateRandomString(length: number = 32): string {
+  const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';
+  let result = '';
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {
+    const values = new Uint8Array(length);
+    window.crypto.getRandomValues(values);
+    for (let i = 0; i < length; i++) {
+      result += charset[values[i] % charset.length];
+    }
+    return result;
+  }
+  for (let i = 0; i < length; i++) {
+    result += charset.charAt(Math.floor(Math.random() * charset.length));
+  }
+  return result;
+}
+
+/**
+ * 计算 SHA-256 并生成 URL-Safe Base64 (原生 Web Crypto 优先，在非 HTTPS/内网 IP 等非安全上下文无缝回退到 crypto-js)
+ */
+export async function calculateCodeChallenge(verifier: string): Promise<string> {
+  if (typeof window !== 'undefined' && window.crypto && window.crypto.subtle && window.crypto.subtle.digest) {
+    try {
+      const encoder = new TextEncoder();
+      const data = encoder.encode(verifier);
+      const digest = await window.crypto.subtle.digest('SHA-256', data);
+      const bytes = new Uint8Array(digest);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return btoa(binary)
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    } catch (e) {
+      console.warn('Web Crypto digest failed, fallback to crypto-js', e);
+    }
+  }
+  const hash = CryptoJS.SHA256(verifier);
+  return hash.toString(CryptoJS.enc.Base64)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+/**
  * 将字符串编码为 URL-safe Base64
  */
 function toBase64Url(str: string): string {
@@ -44,35 +94,7 @@ function toBase64Url(str: string): string {
 }
 
 /**
- * 适配 Keycloak 登录跳转链接，确保携带 redirect_uri 与 client_data
- */
-export function adaptSsoAuthorizeUrl(rawUrl: string): string {
-  try {
-    const url = new URL(rawUrl);
-    const redirectUri = url.searchParams.get('redirect_uri');
-    const state = url.searchParams.get('state') || '';
-    const hasClientData = url.searchParams.has('client_data');
-
-    // 若有 redirect_uri 但无 client_data，自动补充构造 client_data (Base64 URL-safe)
-    if (redirectUri && !hasClientData) {
-      const clientDataObj = {
-        ru: redirectUri,
-        rt: 'code',
-        st: state
-      };
-      const clientDataStr = toBase64Url(JSON.stringify(clientDataObj));
-      url.searchParams.set('client_data', clientDataStr);
-    }
-
-    return url.toString();
-  } catch (e) {
-    console.warn('适配 SSO 授权跳转地址失败，降级使用原地址:', e);
-    return rawUrl;
-  }
-}
-
-/**
- * 发起 SSO 登录重定向 (方案 B：前端直接构造并跳转 Keycloak)
+ * 发起 SSO 登录重定向 (SPA 前端直接构造并跳转 Keycloak)
  */
 export async function startSsoLogin(redirect?: string): Promise<void> {
   if (isRedirecting) {
@@ -88,9 +110,16 @@ export async function startSsoLogin(redirect?: string): Promise<void> {
     const callbackPath = import.meta.env.VITE_APP_SSO_CALLBACK_PATH || '/sso/callback';
     const callbackUrl = window.location.origin + callbackPath;
 
-    // 1. 生成防 CSRF 随机 state，并暂存目标跳转路径
-    const state = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    // 1. 生成防 CSRF state、防重放 nonce、PKCE verifier 与 challenge
+    const state = generateRandomString(32);
+    const nonce = generateRandomString(32);
+    const codeVerifier = generateRandomString(64);
+    const codeChallenge = await calculateCodeChallenge(codeVerifier);
+
     sessionStorage.setItem('sso_state', state);
+    sessionStorage.setItem('sso_nonce', nonce);
+    sessionStorage.setItem('sso_code_verifier', codeVerifier);
+    sessionStorage.setItem('sso_callback_url', callbackUrl); // 精确记录本次跳转回调地址
     sessionStorage.setItem('sso_target_path', safeRedirect);
 
     // 2. 组装 client_data (为 Keycloak 定制主题动态提供回调地址以解析验证码基地址)
@@ -101,7 +130,7 @@ export async function startSsoLogin(redirect?: string): Promise<void> {
     };
     const clientDataStr = toBase64Url(JSON.stringify(clientDataObj));
 
-    // 3. 构造标准 OIDC 授权地址并直接重定向
+    // 3. 构造标准 OIDC 授权地址并直接重定向 (包含强制 PKCE 与 Nonce)
     const authUrl = new URL(`${keycloakUrl}/realms/${realm}/protocol/openid-connect/auth`);
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('client_id', clientId);
@@ -109,6 +138,9 @@ export async function startSsoLogin(redirect?: string): Promise<void> {
     authUrl.searchParams.set('client_data', clientDataStr);
     authUrl.searchParams.set('scope', 'openid profile email');
     authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('nonce', nonce);
+    authUrl.searchParams.set('code_challenge', codeChallenge);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
 
     window.location.href = authUrl.toString();
   } catch (err) {
