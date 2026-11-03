@@ -84,7 +84,7 @@ export const useUserStore = defineStore('user', () => {
       nickname.value = user.nickName;
       avatar.value = profile;
       userId.value = user.userId;
-      tenantId.value = user.tenantId;
+      tenantId.value = data.tenantId || '';
       return Promise.resolve();
     }
     return Promise.reject(err);

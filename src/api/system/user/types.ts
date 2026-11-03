@@ -6,6 +6,7 @@ import { PostVO } from '@/api/system/post/types';
  */
 export interface UserInfo {
   user: UserVO;
+  tenantId?: string;
   roles: string[];
   permissions: string[];
 }
@@ -28,7 +29,7 @@ export interface UserQuery extends PageQuery {
  */
 export interface UserVO extends BaseEntity {
   userId: string | number;
-  tenantId: string;
+  tenantId?: string;
   deptId: number;
   userName: string;
   nickName: string;
