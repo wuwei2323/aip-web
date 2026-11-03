@@ -23,6 +23,19 @@
           </div>
         </div>
 
+        <div v-else-if="isLogout" class="sso-logout-area" style="text-align: center; padding: 20px 0">
+          <el-icon :size="48" color="#67c23a">
+            <CircleCheck />
+          </el-icon>
+          <div style="font-size: 16px; font-weight: 600; color: #303133; margin-top: 16px">您已成功退出登录</div>
+          <div style="color: #909399; font-size: 13px; margin-top: 8px">会话已安全销毁，如需继续使用请重新登录</div>
+          <div style="margin-top: 24px">
+            <el-button type="primary" size="default" @click="handleSsoLogin">
+              前往统一认证登录
+            </el-button>
+          </div>
+        </div>
+
         <div v-else class="sso-loading-area">
           <el-icon class="is-loading" :size="40" color="#409eff">
             <Loading />
@@ -127,7 +140,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, getCurrentInstance, watch, ComponentInternalInstance } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { Loading } from '@element-plus/icons-vue';
+import { Loading, CircleCheck } from '@element-plus/icons-vue';
 import { ElMessage } from 'element-plus';
 import { getCodeImg, getTenantList } from '@/api/login';
 import { useUserStore } from '@/store/modules/user';
@@ -146,6 +159,7 @@ const { t } = useI18n();
 
 const ssoActive = computed(() => isSsoEnabled());
 const showLocalLogin = ref(false);
+const isLogout = computed(() => route.query.logout === 'true');
 
 const ssoError = ref(false);
 const ssoErrorTitle = ref('');
@@ -298,7 +312,7 @@ const initTenantList = async () => {
 onMounted(() => {
   if (ssoActive.value) {
     const hasError = checkSsoQueryError();
-    if (!hasError && !showLocalLogin.value) {
+    if (!hasError && !showLocalLogin.value && !isLogout.value) {
       handleSsoLogin();
     }
   } else {

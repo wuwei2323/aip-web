@@ -186,18 +186,19 @@ export async function checkSsoSessionDebounced(): Promise<boolean> {
  */
 export async function logoutSso(): Promise<void> {
   try {
-    const res = await getSsoLogoutUrl();
+    const postLogoutRedirectUri = window.location.origin + '/login?logout=true';
+    const res = await getSsoLogoutUrl(postLogoutRedirectUri);
     const userStore = useUserStore();
     userStore.cleanSession();
     removeToken();
     if (res && res.data && res.data.logoutUrl) {
       window.location.href = res.data.logoutUrl;
     } else {
-      window.location.href = '/login';
+      window.location.href = '/login?logout=true';
     }
   } catch (error) {
     console.error('SSO 登出异常:', error);
     removeToken();
-    window.location.href = '/login';
+    window.location.href = '/login?logout=true';
   }
 }

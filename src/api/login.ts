@@ -143,7 +143,7 @@ export function checkSsoSession(): AxiosPromise<boolean> {
 /**
  * SSO 登出并获取 Keycloak 登出 URL
  */
-export function getSsoLogoutUrl(): AxiosPromise<SsoLogoutResult> {
+export function getSsoLogoutUrl(redirectUri?: string): AxiosPromise<SsoLogoutResult> {
   if (import.meta.env.VITE_APP_SSE === 'true') {
     request({
       url: '/resource/sse/close',
@@ -152,7 +152,8 @@ export function getSsoLogoutUrl(): AxiosPromise<SsoLogoutResult> {
   }
   return request({
     url: '/auth/sso/logout',
-    method: 'post'
+    method: 'post',
+    params: { redirectUri }
   });
 }
 
