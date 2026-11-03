@@ -186,14 +186,15 @@ const loading = ref(false);
 const captchaEnabled = ref(true);
 const tenantEnabled = ref(true);
 const register = ref(false);
-const redirect = ref('/');
+const redirect = ref('/index');
 const loginRef = ref<any>();
 const tenantList = ref<TenantVO[]>([]);
 
 watch(
   () => router.currentRoute.value,
   (newRoute: any) => {
-    redirect.value = newRoute.query && newRoute.query.redirect && decodeURIComponent(newRoute.query.redirect);
+    const rawRedirect = newRoute.query && newRoute.query.redirect && decodeURIComponent(newRoute.query.redirect);
+    redirect.value = sanitizeRedirect(rawRedirect);
   },
   { immediate: true }
 );
@@ -259,7 +260,7 @@ const handleLogin = () => {
       }
       const [err] = await to(userStore.login(loginForm.value));
       if (!err) {
-        const redirectUrl = redirect.value || '/';
+        const redirectUrl = sanitizeRedirect(redirect.value);
         await router.push(redirectUrl);
         loading.value = false;
       } else {

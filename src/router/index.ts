@@ -63,6 +63,16 @@ export const constantRoutes: RouteRecordRaw[] = [
     hidden: true
   },
   {
+    path: '/tenant',
+    redirect: '/index',
+    hidden: true
+  },
+  {
+    path: '/tenant/:pathMatch(.*)*',
+    redirect: '/index',
+    hidden: true
+  },
+  {
     path: '/:pathMatch(.*)*',
     component: () => import('@/views/error/404.vue'),
     hidden: true

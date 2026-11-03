@@ -15,16 +15,24 @@ export function isSsoEnabled(): boolean {
 }
 
 /**
- * 过滤重定向地址，防范开放重定向攻击
+ * 过滤重定向地址，防范开放重定向攻击并排除已废弃的历史路由
  */
 export function sanitizeRedirect(redirect?: string | null): string {
   if (!redirect || typeof redirect !== 'string') {
-    return '/';
+    return '/index';
   }
   const trimmed = redirect.trim();
-  // 必须是站内相对路径，禁止 // 协议相对域名或外部链接
-  if (!trimmed.startsWith('/') || trimmed.startsWith('//') || trimmed.includes('/sso/callback')) {
-    return '/';
+  // 必须是站内相对路径，禁止 // 协议相对域名或外部链接，过滤掉旧租户路由与回调路由
+  if (
+    !trimmed.startsWith('/') ||
+    trimmed.startsWith('//') ||
+    trimmed.includes('/sso/callback') ||
+    trimmed.startsWith('/tenant') ||
+    trimmed.includes('/tenant/') ||
+    trimmed === '/login' ||
+    trimmed === '/'
+  ) {
+    return '/index';
   }
   return trimmed;
 }

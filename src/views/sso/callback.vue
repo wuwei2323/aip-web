@@ -82,16 +82,17 @@ const handleCallback = async () => {
 
       // 首次登录强制改密判断
       if (res?.password_reset_required && res?.reset_ticket) {
-        const targetPath = sessionStorage.getItem('sso_target_path') || (route.query.redirect as string) || '/';
+        const targetPath = sessionStorage.getItem('sso_target_path') || (route.query.redirect as string) || '/index';
         sessionStorage.removeItem('sso_target_path');
-        await router.replace(`/sso/change-password?ticket=${res.reset_ticket}&redirect=${encodeURIComponent(targetPath)}`);
+        const target = sanitizeRedirect(targetPath);
+        await router.replace(`/sso/change-password?ticket=${res.reset_ticket}&redirect=${encodeURIComponent(target)}`);
         return;
       }
 
       loading.value = false;
       statusTitle.value = '登录成功，正在跳转...';
 
-      const targetPath = sessionStorage.getItem('sso_target_path') || (route.query.redirect as string) || '/';
+      const targetPath = sessionStorage.getItem('sso_target_path') || (route.query.redirect as string) || '/index';
       sessionStorage.removeItem('sso_target_path');
       const target = sanitizeRedirect(targetPath);
       await router.replace(target);
@@ -111,7 +112,7 @@ const handleCallback = async () => {
 };
 
 const handleRetry = async () => {
-  await startSsoLogin('/');
+  await startSsoLogin('/index');
 };
 
 onMounted(() => {

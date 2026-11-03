@@ -78,3 +78,23 @@ export function delApplication(ids: string | number | (string | number)[]): Axio
     method: 'delete'
   });
 }
+
+/**
+ * 动态切换应用
+ */
+export function dynamicApplication(tenantId: string): AxiosPromise<void> {
+  return request({
+    url: '/system/application/dynamic/' + tenantId,
+    method: 'get'
+  });
+}
+
+/**
+ * 清除动态应用
+ */
+export function dynamicClearApplication(): AxiosPromise<void> {
+  return request({
+    url: '/system/application/dynamic/clear',
+    method: 'get'
+  });
+}

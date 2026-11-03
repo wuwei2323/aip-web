@@ -99,7 +99,7 @@ import { useUserStore } from '@/store/modules/user';
 import { useSettingsStore } from '@/store/modules/settings';
 import { useNoticeStore } from '@/store/modules/notice';
 import { getTenantList } from '@/api/login';
-import { dynamicClear, dynamicTenant } from '@/api/system/tenant';
+import { dynamicClearApplication as dynamicClear, dynamicApplication as dynamicTenant } from '@/api/system/application';
 import { TenantVO } from '@/api/types';
 import notice from './notice/index.vue';
 import router from '@/router';
