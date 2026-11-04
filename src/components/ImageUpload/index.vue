@@ -69,7 +69,9 @@ const props = defineProps({
     default: false
   },
   // 压缩目标大小，单位KB。默认300KB以上文件才压缩，并压缩至300KB以内
-  compressTargetSize: propTypes.number.def(300)
+  compressTargetSize: propTypes.number.def(300),
+  // 绑定值类型：'url' (存相对路径/URL，推荐，便于迁移与直接展示) 或 'id' (存 ossId)
+  valueType: propTypes.string.def('url')
 });
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
@@ -96,9 +98,11 @@ watch(
   async (val: string) => {
     if (val) {
       // 首先将值转为数组
-      let list: OssVO[] = [];
+      let list: any[] = [];
       if (Array.isArray(val)) {
         list = val as OssVO[];
+      } else if (typeof val === 'string' && (val.includes('/') || val.startsWith('http'))) {
+        list = val.split(',').map((item) => ({ name: item, url: item }));
       } else {
         const res = await listByIds(val);
         list = res.data;
@@ -190,7 +194,9 @@ const handleDelete = (file: UploadFile): boolean => {
   const findex = fileList.value.map((f) => f.name).indexOf(file.name);
   if (findex > -1 && uploadList.value.length === number.value) {
     const ossId = fileList.value[findex].ossId;
-    delOss(ossId);
+    if (ossId) {
+      delOss(ossId);
+    }
     fileList.value.splice(findex, 1);
     emit('update:modelValue', listToString(fileList.value));
     return false;
@@ -226,8 +232,9 @@ const listToString = (list: any[], separator?: string) => {
   let strs = '';
   separator = separator || ',';
   for (const i in list) {
-    if (undefined !== list[i].ossId && list[i].url.indexOf('blob:') !== 0) {
-      strs += list[i].ossId + separator;
+    if (list[i].url && list[i].url.indexOf('blob:') !== 0) {
+      const val = props.valueType === 'id' && list[i].ossId ? list[i].ossId : list[i].url;
+      strs += val + separator;
     }
   }
   return strs != '' ? strs.substring(0, strs.length - 1) : '';

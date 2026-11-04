@@ -8,6 +8,7 @@ export interface ApplicationVO extends BaseEntity {
   category: string;
   description: string;
   icon?: string;
+  iconUrl?: string;
   entryUrl: string;
   redirectUris: string;
   clientSecret?: string;
@@ -22,7 +23,7 @@ export interface ApplicationForm {
   id?: string | number;
   appId?: string;
   appName: string;
-  category: string;
+  category?: string;
   description: string;
   icon?: string;
   entryUrl: string;

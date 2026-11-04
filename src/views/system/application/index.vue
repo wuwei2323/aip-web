@@ -55,10 +55,10 @@
         <el-table-column label="图标" align="center" width="80">
           <template #default="scope">
             <el-image
-              v-if="scope.row.icon"
+              v-if="scope.row.iconUrl || (scope.row.icon && (scope.row.icon.startsWith('http') || scope.row.icon.startsWith('/')))"
               style="width: 36px; height: 36px; border-radius: 50%"
-              :src="scope.row.icon"
-              :preview-src-list="[scope.row.icon]"
+              :src="scope.row.iconUrl || scope.row.icon"
+              :preview-src-list="[scope.row.iconUrl || scope.row.icon]"
               preview-teleported
               fit="cover"
             />
@@ -133,7 +133,7 @@
           <el-input v-model="form.appName" placeholder="请输入应用系统名称" />
         </el-form-item>
         <el-form-item label="分类" prop="category">
-          <el-select v-model="form.category" placeholder="请选择应用分类" style="width: 100%">
+          <el-select v-model="form.category" placeholder="请选择应用分类" clearable style="width: 100%">
             <el-option v-for="dict in app_category" :key="dict.value" :label="dict.label" :value="dict.value" />
           </el-select>
         </el-form-item>
@@ -248,7 +248,7 @@ const initFormData: ApplicationForm = {
   id: undefined,
   appId: '',
   appName: '',
-  category: 'system',
+  category: undefined,
   description: '',
   icon: '',
   entryUrl: '',
