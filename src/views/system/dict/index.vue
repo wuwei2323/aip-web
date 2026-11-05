@@ -231,12 +231,19 @@
               <el-input v-model="typeForm.dictType" placeholder="请输入字典类型/枚举" maxlength="100" />
             </el-form-item>
             <el-form-item label="应用" prop="tenantIds">
-              <el-select v-model="typeForm.tenantIds" multiple clearable placeholder="请选择关联应用" style="width: 100%">
+              <el-select
+                v-model="typeForm.tenantIds"
+                multiple
+                clearable
+                filterable
+                placeholder="请选择关联应用"
+                style="width: 100%"
+              >
                 <el-option
-                  v-for="item in tenantOptions"
-                  :key="item.tenantId"
-                  :label="item.companyName || item.tenantId"
-                  :value="item.tenantId"
+                  v-for="item in applicationOptions"
+                  :key="item.appId"
+                  :label="`${item.appName} (${item.appId})`"
+                  :value="item.appId"
                 />
               </el-select>
             </el-form-item>
@@ -388,8 +395,8 @@ import { listType, getType, delType, addType, updateType, refreshCache } from '@
 import { listData, getData, delData, addData, updateData } from '@/api/system/dict/data';
 import { DictTypeForm, DictTypeQuery, DictTypeVO, DictComponentInfo } from '@/api/system/dict/type/types';
 import { DictDataForm, DictDataQuery, DictDataVO } from '@/api/system/dict/data/types';
-import { getTenantList } from '@/api/login';
-import { TenantVO } from '@/api/types';
+import { optionselectApplication, listApplication } from '@/api/system/application';
+import { ApplicationVO } from '@/api/system/application/types';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 
@@ -406,7 +413,7 @@ const typeFormRef = ref<ElFormInstance>();
 const typeQueryFormRef = ref<ElFormInstance>();
 const typeTableRef = ref<ElTableInstance>();
 
-const tenantOptions = ref<TenantVO[]>([]);
+const applicationOptions = ref<ApplicationVO[]>([]);
 
 const componentTypeList = [
   { label: '文本框', value: 'textarea' },
@@ -562,10 +569,15 @@ const handleTypeRowClick = (row: DictTypeVO) => {
 
 const getOptionsData = async () => {
   try {
-    const tenantRes = await getTenantList(false);
-    tenantOptions.value = tenantRes.data.voList || [];
+    const res = await optionselectApplication();
+    applicationOptions.value = res.data || [];
   } catch {
-    tenantOptions.value = [];
+    try {
+      const res = await listApplication({ pageNum: 1, pageSize: 1000 });
+      applicationOptions.value = res.rows || [];
+    } catch {
+      applicationOptions.value = [];
+    }
   }
 };
 
@@ -591,9 +603,14 @@ const handleTypeResetQuery = () => {
   handleTypeQuery();
 };
 
-const handleTypeAdd = () => {
+const handleTypeAdd = async () => {
   resetTypeForm();
-  getOptionsData();
+  await getOptionsData();
+  // 默认回显：优先回显集成平台门户(000000)，若无则回显列表中第一个可用应用
+  if (applicationOptions.value.length > 0) {
+    const defaultApp = applicationOptions.value.find((app) => app.appId === '000000') || applicationOptions.value[0];
+    typeForm.value.tenantIds = [defaultApp.appId];
+  }
   typeDialog.visible = true;
   typeDialog.title = '添加字典类型';
 };
@@ -610,12 +627,14 @@ const handleTypeUpdate = async (row?: DictTypeVO) => {
   const dictId = row?.dictId || typeIds.value[0];
   const res = await getType(dictId);
   const data = res.data;
+  const currentAppIds = (data.tenantIds && data.tenantIds.length) ? data.tenantIds : (data.appIds || []);
   Object.assign(typeForm.value, {
     dictId: data.dictId,
     dictName: data.dictName,
     dictType: data.dictType,
     categoryType: data.categoryType || 'system',
-    tenantIds: data.tenantIds || [],
+    tenantIds: currentAppIds,
+    appIds: currentAppIds,
     remark: data.remark || ''
   });
   if (data.componentInfo) {
@@ -639,6 +658,7 @@ const submitTypeForm = () => {
       } else {
         typeForm.value.componentInfo = undefined;
       }
+      typeForm.value.appIds = typeForm.value.tenantIds;
       typeForm.value.dictId ? await updateType(typeForm.value) : await addType(typeForm.value);
       proxy?.$modal.msgSuccess('操作成功');
       typeDialog.visible = false;
@@ -778,6 +798,7 @@ const handleDataExport = () => {
 
 onMounted(() => {
   getTypeList();
+  getOptionsData();
 });
 </script>
 

@@ -337,7 +337,7 @@
 import { addMenu, cascadeDelMenu, delMenu, getMenu, listMenu, updateMenu } from '@/api/system/menu';
 import { MenuForm, MenuQuery, MenuVO } from '@/api/system/menu/types';
 import { MenuTypeEnum } from '@/enums/MenuTypeEnum';
-import { listApplication } from '@/api/system/application';
+import { listApplication, optionselectApplication } from '@/api/system/application';
 import { ApplicationVO } from '@/api/system/application/types';
 
 interface MenuOptionsType {
@@ -579,10 +579,15 @@ const submitDeleteForm = async () => {
 
 const getApplicationOptions = async () => {
   try {
-    const res = await listApplication({ pageNum: 1, pageSize: 1000 });
-    applicationOptions.value = res.rows || [];
+    const res = await optionselectApplication();
+    applicationOptions.value = res.data || [];
   } catch (e) {
-    console.warn('获取应用列表失败:', e);
+    try {
+      const res = await listApplication({ pageNum: 1, pageSize: 1000 });
+      applicationOptions.value = res.rows || [];
+    } catch (err) {
+      console.warn('获取应用列表失败:', err);
+    }
   }
 };
 

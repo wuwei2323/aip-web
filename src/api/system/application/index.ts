@@ -98,3 +98,13 @@ export function dynamicClearApplication(): AxiosPromise<void> {
     method: 'get'
   });
 }
+
+/**
+ * 获取应用选择框列表
+ */
+export function optionselectApplication(): AxiosPromise<ApplicationVO[]> {
+  return request({
+    url: '/system/application/optionselect',
+    method: 'get'
+  });
+}

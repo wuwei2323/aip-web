@@ -20,6 +20,8 @@ export interface DictTypeVO extends BaseEntity {
   categoryType?: string;
   tenantIds?: string[];
   tenantNames?: string[];
+  appIds?: string[];
+  appNames?: string[];
   componentInfo?: string;
   remark: string;
 }
@@ -30,6 +32,7 @@ export interface DictTypeForm {
   dictType: string;
   categoryType: string;
   tenantIds: string[];
+  appIds?: string[];
   componentInfo?: string;
   remark: string;
 }
@@ -39,4 +42,5 @@ export interface DictTypeQuery extends PageQuery {
   dictType: string;
   categoryType?: string;
   tenantId?: string;
+  appId?: string;
 }

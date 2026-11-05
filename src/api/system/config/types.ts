@@ -5,6 +5,7 @@ export interface ConfigVO extends BaseEntity {
   configValue: string;
   configType: string;
   remark: string;
+  appId?: string;
 }
 
 export interface ConfigForm {
@@ -14,10 +15,12 @@ export interface ConfigForm {
   configValue: string;
   configType: string;
   remark: string;
+  appId?: string;
 }
 
 export interface ConfigQuery extends PageQuery {
   configName: string;
   configKey: string;
   configType: string;
+  appId?: string;
 }

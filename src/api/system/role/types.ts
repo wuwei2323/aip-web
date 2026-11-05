@@ -39,6 +39,7 @@ export interface RoleQuery extends PageQuery {
 
 export interface RoleDictValueItem {
   tenantId: string;
+  appId?: string;
   dictId: number | string;
   fieldKey?: string;
   fieldValue?: string;
@@ -56,6 +57,8 @@ export interface RoleDictConfigItem {
 export interface RoleDictConfigGroup {
   tenantId: string;
   tenantName: string;
+  appId?: string;
+  appName?: string;
   checkedDictIds: Array<number | string>;
   allDicts: RoleDictConfigItem[];
   items?: RoleDictConfigItem[];
@@ -64,6 +67,8 @@ export interface RoleDictConfigGroup {
 export interface RoleAppConfigVo {
   tenantId: string;
   tenantName: string;
+  appId?: string;
+  appName?: string;
   dataScope: string;
   menuCheckStrictly: boolean;
   deptCheckStrictly: boolean;
@@ -74,6 +79,7 @@ export interface RoleAppConfigVo {
 
 export interface RoleAppConfigBo {
   tenantId: string;
+  appId?: string;
   dataScope?: string;
   menuCheckStrictly?: boolean;
   deptCheckStrictly?: boolean;
@@ -97,4 +103,5 @@ export interface RoleForm {
   dictValues?: RoleDictValueItem[];
   appConfigs?: RoleAppConfigBo[];
   tenantId?: string;
+  appId?: string;
 }

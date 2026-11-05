@@ -10,6 +10,9 @@
             <el-form-item label="参数键名" prop="configKey">
               <el-input v-model="queryParams.configKey" placeholder="请输入参数键名" clearable @keyup.enter="handleQuery" />
             </el-form-item>
+            <el-form-item label="应用ID" prop="appId">
+              <el-input v-model="queryParams.appId" placeholder="请输入应用ID" clearable @keyup.enter="handleQuery" />
+            </el-form-item>
             <el-form-item label="系统内置" prop="configType">
               <el-select v-model="queryParams.configType" placeholder="系统内置" clearable>
                 <el-option v-for="dict in sys_yes_no" :key="dict.value" :label="dict.label" :value="dict.value" />
@@ -65,6 +68,7 @@
         <el-table-column v-if="false" label="参数主键" align="center" prop="configId" />
         <el-table-column label="参数名称" align="center" prop="configName" :show-overflow-tooltip="true" />
         <el-table-column label="参数键名" align="center" prop="configKey" :show-overflow-tooltip="true" />
+        <el-table-column label="应用ID" align="center" prop="appId" :show-overflow-tooltip="true" />
         <el-table-column label="参数键值" align="center" prop="configValue" :show-overflow-tooltip="true" />
         <el-table-column label="系统内置" align="center" prop="configType">
           <template #default="scope">
@@ -99,6 +103,9 @@
         </el-form-item>
         <el-form-item label="参数键名" prop="configKey">
           <el-input v-model="form.configKey" placeholder="请输入参数键名" />
+        </el-form-item>
+        <el-form-item label="应用ID" prop="appId">
+          <el-input v-model="form.appId" placeholder="请输入应用ID（选填，未填默认为通用配置）" />
         </el-form-item>
         <el-form-item label="参数键值" prop="configValue">
           <el-input v-model="form.configValue" type="textarea" placeholder="请输入参数键值" />
@@ -150,7 +157,8 @@ const initFormData: ConfigForm = {
   configKey: '',
   configValue: '',
   configType: 'Y',
-  remark: ''
+  remark: '',
+  appId: ''
 };
 const data = reactive<PageData<ConfigForm, ConfigQuery>>({
   form: { ...initFormData },
@@ -159,7 +167,8 @@ const data = reactive<PageData<ConfigForm, ConfigQuery>>({
     pageSize: 10,
     configName: '',
     configKey: '',
-    configType: ''
+    configType: '',
+    appId: ''
   },
   rules: {
     configName: [{ required: true, message: '参数名称不能为空', trigger: 'blur' }],

@@ -619,7 +619,8 @@ const submitRightConfig = async () => {
 
     // 2. 组装各应用独立的配置列表
     const appConfigsBo: RoleAppConfigBo[] = appConfigs.value.map((c) => ({
-      tenantId: c.tenantId,
+      tenantId: c.tenantId || c.appId || '',
+      appId: c.appId || c.tenantId || '',
       dataScope: c.dataScope,
       menuCheckStrictly: c.menuCheckStrictly,
       deptCheckStrictly: c.deptCheckStrictly,
@@ -631,8 +632,9 @@ const submitRightConfig = async () => {
     const dictValues: RoleDictValueItem[] = [];
     for (const group of dictConfigGroups.value) {
       const items = group.allDicts || group.items || [];
+      const currentAppId = group.appId || group.tenantId;
       for (const item of items) {
-        const key = group.tenantId + ':' + item.dictId;
+        const key = (group.tenantId || group.appId) + ':' + item.dictId;
         let val = '';
         if (item.component?.componentType === 'checkbox') {
           const arr = dictCheckboxMap.value[key] || [];
@@ -641,7 +643,8 @@ const submitRightConfig = async () => {
           val = dictValueMap.value[key] || '';
         }
         dictValues.push({
-          tenantId: group.tenantId,
+          tenantId: group.tenantId || currentAppId,
+          appId: currentAppId,
           dictId: item.dictId,
           fieldKey: item.fieldKey || item.component?.fieldKey,
           fieldValue: val
@@ -650,8 +653,10 @@ const submitRightConfig = async () => {
     }
 
     // 4. 一次性提交保存
+    const roleDictIds = [...new Set(dictValues.map((d) => d.dictId))];
     await saveRoleAppConfigs(currentRole.value.roleId, {
       appConfigs: appConfigsBo,
+      roleDictIds,
       dictValues
     });
 
