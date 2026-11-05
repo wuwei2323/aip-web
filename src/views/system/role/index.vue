@@ -397,7 +397,7 @@ const getDataScopeTagType = (dataScopeValue: string) => {
     case '2':
       return 'warning';
     case '3':
-    case '4':
+      case '4':
       return 'primary';
     default:
       return 'info';
@@ -652,11 +652,9 @@ const submitRightConfig = async () => {
       }
     }
 
-    // 4. 一次性提交保存
-    const roleDictIds = [...new Set(dictValues.map((d) => d.dictId))];
+    // 4. 一次性提交保存（自定义字典关联由字典维护页面管理，此处仅保存各应用配置及字典配置值）
     await saveRoleAppConfigs(currentRole.value.roleId, {
       appConfigs: appConfigsBo,
-      roleDictIds,
       dictValues
     });
 

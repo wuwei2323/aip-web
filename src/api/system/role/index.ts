@@ -13,15 +13,18 @@ export const listRole = (query: RoleQuery): AxiosPromise<RoleVO[]> => {
 };
 
 /**
- * 通过roleIds查询角色
+ * 通过roleIds查询角色（支持按 roleIds 筛选，缺省返回全部正常角色）
  * @param roleIds
  */
-export const optionSelect = (roleIds: (number | string)[]): AxiosPromise<RoleVO[]> => {
+export const optionSelect = (roleIds?: (number | string)[]): AxiosPromise<RoleVO[]> => {
   return request({
-    url: '/system/role/optionselect?roleIds=' + roleIds,
-    method: 'get'
+    url: '/system/role/optionselect',
+    method: 'get',
+    params: roleIds && roleIds.length ? { roleIds: roleIds.join(',') } : undefined
   });
 };
+
+export const optionselectRole = optionSelect;
 
 /**
  * 查询角色详细
@@ -185,5 +188,6 @@ export const saveRoleAppConfigs = (roleId: string | number, data: any) => {
 
 export default {
   optionSelect,
+  optionselectRole,
   listRole
 };

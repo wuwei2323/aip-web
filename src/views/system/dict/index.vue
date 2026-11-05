@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="p-2 dict-page">
     <el-row :gutter="16" class="dict-grid">
       <!-- 字典类型 -->
@@ -253,6 +253,23 @@
                 <el-radio value="role">角色</el-radio>
               </el-radio-group>
             </el-form-item>
+            <el-form-item v-if="typeForm.categoryType === 'role'" label="关联角色" prop="roleIds">
+              <el-select
+                v-model="typeForm.roleIds"
+                multiple
+                clearable
+                filterable
+                placeholder="请选择关联角色"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="item in roleOptions"
+                  :key="item.roleId"
+                  :label="item.roleName"
+                  :value="item.roleId"
+                />
+              </el-select>
+            </el-form-item>
             <el-form-item label="备注" prop="remark">
               <el-input v-model="typeForm.remark" type="textarea" placeholder="请输入内容"></el-input>
             </el-form-item>
@@ -397,6 +414,8 @@ import { DictTypeForm, DictTypeQuery, DictTypeVO, DictComponentInfo } from '@/ap
 import { DictDataForm, DictDataQuery, DictDataVO } from '@/api/system/dict/data/types';
 import { optionselectApplication, listApplication } from '@/api/system/application';
 import { ApplicationVO } from '@/api/system/application/types';
+import { optionselectRole } from '@/api/system/role';
+import { RoleVO } from '@/api/system/role/types';
 
 const { proxy } = getCurrentInstance() as ComponentInternalInstance;
 
@@ -414,6 +433,7 @@ const typeQueryFormRef = ref<ElFormInstance>();
 const typeTableRef = ref<ElTableInstance>();
 
 const applicationOptions = ref<ApplicationVO[]>([]);
+const roleOptions = ref<RoleVO[]>([]);
 
 const componentTypeList = [
   { label: '文本框', value: 'textarea' },
@@ -450,6 +470,7 @@ const typeInitFormData: DictTypeForm = {
   dictType: '',
   categoryType: 'system',
   tenantIds: [],
+  roleIds: [],
   remark: ''
 };
 
@@ -464,7 +485,19 @@ const typeState = reactive<PageData<DictTypeForm, DictTypeQuery>>({
   rules: {
     dictName: [{ required: true, message: '字典名称不能为空', trigger: 'blur' }],
     dictType: [{ required: true, message: '字典类型不能为空', trigger: 'blur' }],
-    tenantIds: [{ required: true, message: '关联应用不能为空', trigger: 'change' }]
+    tenantIds: [{ required: true, message: '关联应用不能为空', trigger: 'change' }],
+    roleIds: [
+      {
+        validator: (rule: any, value: any, callback: any) => {
+          if (typeForm.value.categoryType === 'role' && (!value || !value.length)) {
+            callback(new Error('关联角色不能为空'));
+          } else {
+            callback();
+          }
+        },
+        trigger: 'change'
+      }
+    ]
   }
 });
 
@@ -581,6 +614,15 @@ const getOptionsData = async () => {
   }
 };
 
+const getRoleOptions = async () => {
+  try {
+    const res = await optionselectRole();
+    roleOptions.value = res.data || [];
+  } catch {
+    roleOptions.value = [];
+  }
+};
+
 const cancelType = () => {
   resetTypeForm();
   typeDialog.visible = false;
@@ -605,7 +647,7 @@ const handleTypeResetQuery = () => {
 
 const handleTypeAdd = async () => {
   resetTypeForm();
-  await getOptionsData();
+  await Promise.all([getOptionsData(), getRoleOptions()]);
   // 默认回显：优先回显集成平台门户(000000)，若无则回显列表中第一个可用应用
   if (applicationOptions.value.length > 0) {
     const defaultApp = applicationOptions.value.find((app) => app.appId === '000000') || applicationOptions.value[0];
@@ -623,7 +665,7 @@ const handleTypeSelectionChange = (selection: DictTypeVO[]) => {
 
 const handleTypeUpdate = async (row?: DictTypeVO) => {
   resetTypeForm();
-  await getOptionsData();
+  await Promise.all([getOptionsData(), getRoleOptions()]);
   const dictId = row?.dictId || typeIds.value[0];
   const res = await getType(dictId);
   const data = res.data;
@@ -635,6 +677,7 @@ const handleTypeUpdate = async (row?: DictTypeVO) => {
     categoryType: data.categoryType || 'system',
     tenantIds: currentAppIds,
     appIds: currentAppIds,
+    roleIds: data.roleIds || [],
     remark: data.remark || ''
   });
   if (data.componentInfo) {
@@ -657,6 +700,7 @@ const submitTypeForm = () => {
         typeForm.value.componentInfo = JSON.stringify(componentConfig.value);
       } else {
         typeForm.value.componentInfo = undefined;
+        typeForm.value.roleIds = [];
       }
       typeForm.value.appIds = typeForm.value.tenantIds;
       typeForm.value.dictId ? await updateType(typeForm.value) : await addType(typeForm.value);
@@ -799,6 +843,7 @@ const handleDataExport = () => {
 onMounted(() => {
   getTypeList();
   getOptionsData();
+  getRoleOptions();
 });
 </script>
 
