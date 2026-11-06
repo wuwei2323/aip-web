@@ -87,6 +87,15 @@ export interface RoleAppConfigBo {
   deptIds?: Array<string | number>;
 }
 
+/**
+ * 新增角色时可用的权限模板
+ */
+export interface RoleEditTemplate {
+  appConfigs: RoleAppConfigVo[];
+  deptTree: DeptTreeOption[];
+  dictConfigs: RoleDictConfigGroup[];
+}
+
 export interface RoleForm {
   roleName: string;
   roleKey: string;
@@ -96,7 +105,7 @@ export interface RoleForm {
   deptCheckStrictly: boolean;
   remark: string;
   dataScope?: string;
-  roleId: string | undefined;
+  roleId?: string | number;
   menuIds: Array<string | number>;
   deptIds: Array<string | number>;
   roleDictIds?: Array<number | string>;

@@ -46,8 +46,12 @@ export const usePermissionStore = defineStore('permission', () => {
     sidebarRouters.value = routes;
   };
   const generateRoutes = async (): Promise<RouteRecordRaw[]> => {
+    console.log('🔄 开始生成动态路由...');
     const res = await getRouters();
     const { data } = res;
+    console.log('📦 后端返回的路由数据:', data);
+    console.log(`📊 路由总数: ${data.length}`);
+    
     const sdata = JSON.parse(JSON.stringify(data));
     const rdata = JSON.parse(JSON.stringify(data));
     const defaultData = JSON.parse(JSON.stringify(data));
@@ -64,6 +68,8 @@ export const usePermissionStore = defineStore('permission', () => {
     setTopbarRoutes(defaultRoutes);
     // 路由name重复检查
     duplicateRouteChecker(asyncRoutes, sidebarRoutes);
+    console.log('✅ 动态路由生成完成');
+    console.log('📋 侧边栏路由数量:', sidebarRouters.value.length);
     return new Promise<RouteRecordRaw[]>((resolve) => resolve(rewriteRoutes));
   };
 
@@ -81,12 +87,19 @@ export const usePermissionStore = defineStore('permission', () => {
       // Layout ParentView 组件特殊处理
       if (route.component?.toString() === 'Layout') {
         route.component = Layout;
+        console.log(`🔧 处理 Layout 组件: ${route.name}`);
       } else if (route.component?.toString() === 'ParentView') {
         route.component = ParentView;
+        console.log(`🔧 处理 ParentView 组件: ${route.name}`);
       } else if (route.component?.toString() === 'InnerLink') {
         route.component = InnerLink;
+        console.log(`🔧 处理 InnerLink 组件: ${route.name}`);
       } else {
+        console.log(`🔍 尝试加载组件: ${route.name} -> ${route.component}`);
         route.component = loadView(route.component, route.name as string);
+        if (!route.component) {
+          console.error(`❌ 路由 ${route.name} 的组件加载失败: ${route.component}`);
+        }
       }
       if (route.children != null && route.children && route.children.length) {
         route.children = filterAsyncRouter(route.children, route, type);
@@ -151,9 +164,23 @@ export const loadView = (view: any, name: string) => {
     dir = dir.substring(0, dir.lastIndexOf('.vue'));
     if (dir === view) {
       res = createCustomNameComponent(modules[path], { name });
+      console.log(`✅ 成功加载组件: ${view} -> ${path}`);
       return res;
     }
   }
+  // 组件未找到，输出详细错误信息
+  console.error(`❌ 未找到组件: ${view}`);
+  console.error('可用组件列表:');
+  const availableComponents: string[] = [];
+  for (const path in modules) {
+    const viewsIndex = path.indexOf('/views/');
+    let dir = path.substring(viewsIndex + 7);
+    dir = dir.substring(0, dir.lastIndexOf('.vue'));
+    availableComponents.push(dir);
+  }
+  console.table(availableComponents);
+  console.error(`请检查后端菜单表中的 component 字段是否为: ${view}`);
+  console.error(`或检查前端是否存在文件: src/views/${view}.vue`);
   return res;
 };
 

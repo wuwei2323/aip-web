@@ -1,7 +1,7 @@
 import { UserVO } from '@/api/system/user/types';
 import { UserQuery } from '@/api/system/user/types';
 import { AxiosPromise } from 'axios';
-import { RoleQuery, RoleVO, RoleDeptTree, RoleDictConfigGroup, RoleAppConfigVo } from './types';
+import { RoleQuery, RoleVO, RoleDeptTree, RoleDictConfigGroup, RoleAppConfigVo, RoleEditTemplate } from './types';
 import request from '@/utils/request';
 
 export const listRole = (query: RoleQuery): AxiosPromise<RoleVO[]> => {
@@ -54,17 +54,6 @@ export const addRole = (data: any) => {
 export const updateRole = (data: any) => {
   return request({
     url: '/system/role',
-    method: 'put',
-    data: data
-  });
-};
-
-/**
- * 角色数据权限
- */
-export const dataScope = (data: any) => {
-  return request({
-    url: '/system/role/dataScope',
     method: 'put',
     data: data
   });
@@ -176,13 +165,12 @@ export const getRoleAppConfigs = (roleId: string | number): AxiosPromise<RoleApp
 };
 
 /**
- * 保存角色在各应用下的配置
+ * 查询新增角色时可用的权限模板（应用、菜单树、部门树、字典配置）
  */
-export const saveRoleAppConfigs = (roleId: string | number, data: any) => {
+export const getRoleAppConfigTemplate = (): AxiosPromise<RoleEditTemplate> => {
   return request({
-    url: '/system/role/' + roleId + '/appConfigs',
-    method: 'put',
-    data: data
+    url: '/system/role/appConfigTemplate',
+    method: 'get'
   });
 };
 

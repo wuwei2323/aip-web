@@ -28,6 +28,12 @@ import ElementIcons from '@/plugins/svgicon';
 // permission control
 import './permission';
 
+// 路由调试工具 (仅开发环境)
+import { enableDebugMode } from '@/utils/routeDebug';
+if (import.meta.env.DEV) {
+  enableDebugMode();
+}
+
 // 国际化
 import i18n from '@/lang/index';
 
