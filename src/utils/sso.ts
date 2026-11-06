@@ -112,7 +112,7 @@ export async function startSsoLogin(redirect?: string): Promise<void> {
 
   try {
     const safeRedirect = sanitizeRedirect(redirect);
-    const keycloakUrl = import.meta.env.VITE_APP_KEYCLOAK_URL || 'http://192.168.43.100:8080';
+    const keycloakUrl = import.meta.env.VITE_APP_KEYCLOAK_URL || 'http://192.168.3.82:8082';
     const realm = import.meta.env.VITE_APP_KEYCLOAK_REALM || 'aip';
     const clientId = import.meta.env.VITE_APP_KEYCLOAK_CLIENT_ID || '000000';
     const callbackPath = import.meta.env.VITE_APP_SSO_CALLBACK_PATH || '/sso/callback';
