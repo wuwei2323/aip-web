@@ -37,7 +37,7 @@ export function addApplication(data: ApplicationForm): AxiosPromise<ApplicationV
 /**
  * 修改应用
  */
-export function updateApplication(data: ApplicationForm): AxiosPromise<void> {
+export function updateApplication(data: ApplicationForm): AxiosPromise<ApplicationVO> {
   return request({
     url: '/system/application',
     method: 'put',
@@ -48,7 +48,7 @@ export function updateApplication(data: ApplicationForm): AxiosPromise<void> {
 /**
  * 修改应用状态
  */
-export function changeApplicationStatus(id: string | number, status: string): AxiosPromise<void> {
+export function changeApplicationStatus(id: string | number, status: string): AxiosPromise<ApplicationVO> {
   return request({
     url: '/system/application/changeStatus',
     method: 'put',
@@ -56,6 +56,13 @@ export function changeApplicationStatus(id: string | number, status: string): Ax
       id,
       status
     }
+  });
+}
+
+export function syncApplication(id: string | number): AxiosPromise<ApplicationVO> {
+  return request({
+    url: `/system/application/${id}/sync`,
+    method: 'post'
   });
 }
 

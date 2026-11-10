@@ -83,6 +83,15 @@
             </el-tag>
           </template>
         </el-table-column>
+        <el-table-column label="认证同步" align="center" width="120">
+          <template #default="scope">
+            <el-tooltip :content="scope.row.ssoSyncError || syncStatusLabel(scope.row.ssoSyncStatus)" placement="top">
+              <el-tag :type="scope.row.ssoSyncStatus === 'SUCCESS' ? 'success' : scope.row.ssoSyncStatus === 'FAILED' ? 'danger' : 'info'">
+                {{ syncStatusLabel(scope.row.ssoSyncStatus) }}
+              </el-tag>
+            </el-tooltip>
+          </template>
+        </el-table-column>
         <el-table-column label="访问地址" align="center" prop="entryUrl" min-width="180" :show-overflow-tooltip="true">
           <template #default="scope">
             <el-link v-if="scope.row.entryUrl" type="primary" :href="scope.row.entryUrl" target="_blank" :underline="false">
@@ -93,8 +102,18 @@
         </el-table-column>
         <el-table-column label="简介" align="center" prop="description" min-width="200" :show-overflow-tooltip="true" />
         <el-table-column label="接入时间" align="center" prop="createTime" width="160" />
-        <el-table-column label="操作" align="center" width="200" class-name="small-padding fixed-width">
+        <el-table-column label="操作" align="center" width="280" class-name="small-padding fixed-width">
           <template #default="scope">
+            <el-button
+              v-if="scope.row.ssoSyncStatus !== 'SUCCESS'"
+              v-hasPermi="['system:application:edit']"
+              link
+              type="primary"
+              :loading="syncingIds.has(scope.row.id)"
+              @click="handleSync(scope.row)"
+            >
+              重新同步
+            </el-button>
             <el-button v-hasPermi="['system:application:edit']" link type="primary" @click="handleUpdate(scope.row)">
               编辑
             </el-button>
@@ -140,7 +159,7 @@
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="form.status">
             <el-radio-button value="0">已启用</el-radio-button>
-            <el-radio-button value="1">未启用</el-radio-button>
+            <el-radio-button value="1" :disabled="form.appId === '000000'">未启用</el-radio-button>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="访问地址" prop="entryUrl">
@@ -165,6 +184,13 @@
             placeholder="允许的登录回调URI列表，多个以换行分隔，如 https://wx.example.com/oauth/callback"
           />
         </el-form-item>
+        <el-form-item label="退出后返回" prop="postLogoutRedirectUri">
+          <el-input v-model="form.postLogoutRedirectUri" :maxlength="500" placeholder="可选：退出后的完整前端地址" />
+        </el-form-item>
+        <el-form-item label="统一退出通知" prop="backchannelLogoutUri">
+          <el-input v-model="form.backchannelLogoutUri" :maxlength="500" placeholder="子应用提供、认证服务器可访问的后端地址" />
+          <div class="text-xs text-gray-500">要跟随平台退出，子应用须实现并登记此接口；与浏览器退出回跳地址不同。</div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <div class="dialog-footer">
@@ -175,7 +201,7 @@
     </el-dialog>
 
     <!-- 密钥展示对话框 (新增/重置密钥后单次展示) -->
-    <el-dialog v-model="secretDialog.visible" title="应用凭据凭据 (请妥善保管)" width="520px" append-to-body>
+    <el-dialog v-model="secretDialog.visible" title="应用凭据 (请妥善保管)" width="520px" append-to-body @closed="clearSecret">
       <el-alert
         title="请妥善保管该应用凭据！出于安全考虑，客户端密钥明文仅展示一次，关闭后将无法再次查看。"
         type="warning"
@@ -214,7 +240,8 @@ import {
   addApplication,
   updateApplication,
   delApplication,
-  resetApplicationSecret
+  resetApplicationSecret,
+  syncApplication
 } from '@/api/system/application';
 import { ApplicationVO, ApplicationForm, ApplicationQuery } from '@/api/system/application/types';
 
@@ -229,6 +256,31 @@ const single = ref(true);
 const multiple = ref(true);
 const total = ref(0);
 const buttonLoading = ref(false);
+const syncingIds = ref(new Set<string | number>());
+
+const syncStatusLabel = (status?: ApplicationVO['ssoSyncStatus']) =>
+  ({ SUCCESS: '已同步', FAILED: '同步失败', PENDING: '待同步' })[status || 'PENDING'];
+
+const notifySyncResult = (app: ApplicationVO) => {
+  if (app.ssoSyncStatus === 'SUCCESS') {
+    ElMessage.success('应用已保存，认证配置已同步');
+  } else {
+    ElMessage.warning(app.ssoSyncStatus === 'FAILED' ? '应用已保存，认证同步失败，请查看原因并重试' : '应用已保存，认证配置待同步');
+  }
+};
+
+const validateOptionalUri = (_rule: unknown, value: string | null | undefined, callback: (error?: Error) => void) => {
+  if (!value?.trim()) return callback();
+  try {
+    const uri = new URL(value.trim());
+    if (!['http:', 'https:'].includes(uri.protocol) || !uri.hostname || uri.username || uri.password || uri.hash || value.includes('*') || value.trim().length > 500) {
+      return callback(new Error('请输入不含通配符、用户信息或片段的完整 HTTP(S) 地址'));
+    }
+    callback();
+  } catch {
+    callback(new Error('请输入完整的 HTTP(S) 地址'));
+  }
+};
 
 const queryFormRef = ref<FormInstance>();
 const formRef = ref<FormInstance>();
@@ -253,6 +305,8 @@ const initFormData: ApplicationForm = {
   icon: '',
   entryUrl: '',
   redirectUris: '',
+  postLogoutRedirectUri: '',
+  backchannelLogoutUri: '',
   status: '0'
 };
 
@@ -273,7 +327,9 @@ const data = reactive<PageData<ApplicationForm, ApplicationQuery>>({
     entryUrl: [{ required: true, message: '访问地址不能为空', trigger: 'blur' }],
     description: [{ required: true, message: '应用简介不能为空', trigger: 'blur' }],
     icon: [{ required: true, message: '应用图标不能为空', trigger: 'change' }],
-    redirectUris: [{ required: true, message: '登录回调地址不能为空', trigger: 'blur' }]
+    redirectUris: [{ required: true, message: '登录回调地址不能为空', trigger: 'blur' }],
+    postLogoutRedirectUri: [{ validator: validateOptionalUri, trigger: 'blur' }],
+    backchannelLogoutUri: [{ validator: validateOptionalUri, trigger: 'blur' }]
   }
 });
 
@@ -352,7 +408,16 @@ const handleUpdate = async (row?: ApplicationVO) => {
   const id = row?.id || ids.value[0];
   const res = await getApplication(id);
   form.value = {
-    ...res.data,
+    id: res.data.id,
+    appId: res.data.appId,
+    appName: res.data.appName,
+    category: res.data.category,
+    description: res.data.description,
+    icon: res.data.icon,
+    entryUrl: res.data.entryUrl,
+    status: res.data.status,
+    postLogoutRedirectUri: res.data.postLogoutRedirectUri,
+    backchannelLogoutUri: res.data.backchannelLogoutUri,
     redirectUris: formatRedirectUrisForEdit(res.data.redirectUris)
   };
   dialog.visible = true;
@@ -366,20 +431,20 @@ const submitForm = () => {
       buttonLoading.value = true;
       try {
         if (form.value.id !== undefined) {
-          await updateApplication(form.value);
-          ElMessage.success('修改应用成功');
+          const res = await updateApplication(form.value);
+          notifySyncResult(res.data);
           dialog.visible = false;
           await getList();
         } else {
           const res = await addApplication(form.value);
-          ElMessage.success('新增应用成功');
+          notifySyncResult(res.data);
           dialog.visible = false;
-          await getList();
           if (res.data?.clientSecret) {
             secretDialog.appId = res.data.appId;
             secretDialog.secret = res.data.clientSecret;
             secretDialog.visible = true;
           }
+          await getList();
         }
       } finally {
         buttonLoading.value = false;
@@ -399,6 +464,23 @@ const handleResetSecret = async (row: ApplicationVO) => {
   secretDialog.appId = row.appId;
   secretDialog.secret = res.data;
   secretDialog.visible = true;
+};
+
+const clearSecret = () => {
+  secretDialog.secret = '';
+  secretDialog.appId = '';
+};
+
+const handleSync = async (row: ApplicationVO) => {
+  if (syncingIds.value.has(row.id)) return;
+  syncingIds.value.add(row.id);
+  try {
+    const res = await syncApplication(row.id);
+    notifySyncResult(res.data);
+    await getList();
+  } finally {
+    syncingIds.value.delete(row.id);
+  }
 };
 
 /** 复制密钥 */

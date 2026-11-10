@@ -11,6 +11,10 @@ export interface ApplicationVO extends BaseEntity {
   iconUrl?: string;
   entryUrl: string;
   redirectUris: string;
+  postLogoutRedirectUri?: string | null;
+  backchannelLogoutUri?: string | null;
+  readonly ssoSyncStatus?: 'PENDING' | 'SUCCESS' | 'FAILED';
+  readonly ssoSyncError?: string | null;
   clientSecret?: string;
   status: string;
   createTime?: string;
@@ -28,6 +32,8 @@ export interface ApplicationForm {
   icon?: string;
   entryUrl: string;
   redirectUris: string;
+  postLogoutRedirectUri?: string | null;
+  backchannelLogoutUri?: string | null;
   status?: string;
 }
 
