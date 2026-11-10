@@ -23,6 +23,8 @@ export interface MenuQuery {
   keywords?: string;
   menuName?: string;
   status?: string;
+  visible?: string;
+  groupId?: number | string;
 }
 
 /**
@@ -46,6 +48,7 @@ export interface MenuVO extends BaseEntity {
   icon: string;
   remark: string;
   appId?: string;
+  groupId?: number;
 }
 
 export interface MenuForm {
@@ -68,4 +71,5 @@ export interface MenuForm {
   query?: string;
   perms?: string;
   appId?: string;
+  groupId?: number;
 }

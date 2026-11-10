@@ -7,14 +7,19 @@
             <el-form-item label="菜单名称" prop="menuName">
               <el-input v-model="queryParams.menuName" placeholder="请输入菜单名称" clearable @keyup.enter="handleQuery" />
             </el-form-item>
-            <el-form-item label="状态" prop="status">
-              <el-select v-model="queryParams.status" placeholder="菜单状态" clearable>
+            <el-form-item label="菜单状态" prop="status">
+              <el-select v-model="queryParams.status" placeholder="请选择" clearable>
                 <el-option v-for="dict in sys_normal_disable" :key="dict.value" :label="dict.label" :value="dict.value" />
               </el-select>
             </el-form-item>
+            <el-form-item label="显示状态" prop="visible">
+              <el-select v-model="queryParams.visible" placeholder="请选择" clearable>
+                <el-option v-for="dict in sys_show_hide" :key="dict.value" :label="dict.label" :value="dict.value" />
+              </el-select>
+            </el-form-item>
             <el-form-item>
-              <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
               <el-button icon="Refresh" @click="resetQuery">重置</el-button>
+              <el-button type="primary" icon="Search" @click="handleQuery">搜索</el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -23,17 +28,19 @@
 
     <el-card shadow="hover">
       <template #header>
-        <el-row :gutter="10">
-          <el-col :span="1.5">
+        <div class="flex items-center justify-between">
+          <el-radio-group v-model="queryParams.groupId" @change="handleGroupChange">
+            <el-radio-button :value="2">集成平台</el-radio-button>
+            <el-radio-button :value="1">管理后台</el-radio-button>
+          </el-radio-group>
+          <div class="flex items-center gap-2">
             <el-button v-hasPermi="['system:menu:add']" type="primary" plain icon="Plus" @click="handleAdd()">新增</el-button>
-          </el-col>
-          <el-col :span="1.5">
-            <el-button v-hasPermi="['system:menu:remove']" type="danger" plain icon="Delete" @click="handleCascadeDelete" :loading="deleteLoading"
-              >级联删除</el-button
-            >
-          </el-col>
-          <right-toolbar v-model:show-search="showSearch" @query-table="getList"></right-toolbar>
-        </el-row>
+            <el-button v-hasPermi="['system:menu:remove']" type="danger" plain icon="Delete" :loading="deleteLoading" @click="handleCascadeDelete">
+              级联删除
+            </el-button>
+            <right-toolbar v-model:show-search="showSearch" @query-table="getList"></right-toolbar>
+          </div>
+        </div>
       </template>
 
       <el-table
@@ -55,6 +62,13 @@
           </template>
         </el-table-column>
         <el-table-column prop="orderNum" label="排序" width="60"></el-table-column>
+        <el-table-column prop="menuType" label="组件类型" align="center" width="100">
+          <template #default="scope">
+            <el-tag v-if="scope.row.menuType === 'M'" type="warning">目录</el-tag>
+            <el-tag v-else-if="scope.row.menuType === 'C'" type="success">菜单</el-tag>
+            <el-tag v-else-if="scope.row.menuType === 'F'" type="info">按钮</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column prop="perms" label="权限标识" :show-overflow-tooltip="true"></el-table-column>
         <el-table-column prop="component" label="组件路径" :show-overflow-tooltip="true"></el-table-column>
         <el-table-column prop="appId" label="关联应用" align="center" :show-overflow-tooltip="true" width="120">
@@ -66,6 +80,11 @@
         <el-table-column prop="status" label="状态" width="80">
           <template #default="scope">
             <dict-tag :options="sys_normal_disable" :value="scope.row.status" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="visible" label="显示" width="80">
+          <template #default="scope">
+            <dict-tag :options="sys_show_hide" :value="scope.row.visible" />
           </template>
         </el-table-column>
         <el-table-column label="创建时间" align="center" prop="createTime">
@@ -92,6 +111,14 @@
     <el-dialog v-model="dialog.visible" :title="dialog.title" destroy-on-close append-to-bod width="750px">
       <el-form ref="menuFormRef" :model="form" :rules="rules" label-width="100px">
         <el-row>
+          <el-col :span="24">
+            <el-form-item label="菜单分组" prop="groupId">
+              <el-radio-group v-model="form.groupId" @change="handleFormGroupChange">
+                <el-radio :value="1">管理后台</el-radio>
+                <el-radio :value="2">集成平台</el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
           <el-col :span="24">
             <el-form-item label="上级菜单">
               <el-tree-select
@@ -376,15 +403,19 @@ const initFormData: MenuForm = {
   isCache: '0',
   visible: '0',
   status: '0',
-  appId: undefined
+  appId: undefined,
+  groupId: 1
 };
 const data = reactive<PageData<MenuForm, MenuQuery>>({
   form: { ...initFormData },
   queryParams: {
     menuName: undefined,
-    status: undefined
+    status: undefined,
+    visible: undefined,
+    groupId: 1
   },
   rules: {
+    groupId: [{ required: true, message: '菜单分组不能为空', trigger: 'change' }],
     menuName: [{ required: true, message: '菜单名称不能为空', trigger: 'blur' }],
     orderNum: [{ required: true, message: '菜单顺序不能为空', trigger: 'blur' }],
     path: [{ required: true, message: '路由地址不能为空', trigger: 'blur' }],
@@ -475,10 +506,23 @@ const getList = async () => {
   refreshAllExpandMenuData();
   loading.value = false;
 };
+/** 分组Tab切换 */
+const handleGroupChange = () => {
+  menuExpandMap.value = {};
+  getList();
+};
+
+/** 弹窗中菜单分组改变 */
+const handleFormGroupChange = (val: number) => {
+  form.value.parentId = 0;
+  getTreeselect(val);
+};
+
 /** 查询菜单下拉树结构 */
-const getTreeselect = async () => {
+const getTreeselect = async (groupId?: number) => {
   menuOptions.value = [];
-  const response = await listMenu();
+  const targetGroupId = groupId ?? form.value.groupId ?? queryParams.value.groupId ?? 1;
+  const response = await listMenu({ groupId: targetGroupId });
   const menu: MenuOptionsType = { menuId: 0, menuName: '主类目', children: [] };
   menu.children = proxy?.handleTree<MenuOptionsType>(response.data, 'menuId');
   menuOptions.value.push(menu);
@@ -500,24 +544,31 @@ const handleQuery = () => {
 };
 /** 重置按钮操作 */
 const resetQuery = () => {
+  const currentGroupId = queryParams.value.groupId;
   queryFormRef.value?.resetFields();
+  queryParams.value.groupId = currentGroupId;
   handleQuery();
 };
 /** 新增按钮操作 */
 const handleAdd = (row?: MenuVO) => {
   reset();
-  getTreeselect();
+  const currentGroupId = row?.groupId ?? queryParams.value.groupId ?? 1;
+  form.value.groupId = currentGroupId;
   row && row.menuId ? (form.value.parentId = row.menuId) : (form.value.parentId = 0);
+  getTreeselect(currentGroupId);
   dialog.visible = true;
   dialog.title = '添加菜单';
 };
 /** 修改按钮操作 */
 const handleUpdate = async (row: MenuVO) => {
   reset();
-  await getTreeselect();
   if (row.menuId) {
     const { data } = await getMenu(row.menuId);
-    form.value = data;
+    form.value = {
+      ...data,
+      groupId: data.groupId ?? row.groupId ?? queryParams.value.groupId ?? 1
+    };
+    await getTreeselect(form.value.groupId);
   }
   dialog.visible = true;
   dialog.title = '修改菜单';
@@ -552,7 +603,7 @@ const deleteDialog = reactive<DialogOption>({
 /** 级联删除按钮操作 */
 const handleCascadeDelete = () => {
   menuTreeRef.value?.setCheckedKeys([]);
-  getTreeselect();
+  getTreeselect(queryParams.value.groupId);
   deleteDialog.visible = true;
 };
 
