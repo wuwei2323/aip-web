@@ -28,6 +28,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { Loading, CircleClose, CircleCheck } from '@element-plus/icons-vue';
 import { useUserStore } from '@/store/modules/user';
 import { sanitizeRedirect, startSsoLogin } from '@/utils/sso';
+import { consumeSsoCallbackTransaction } from '@/utils/ssoTransaction';
 
 const route = useRoute();
 const router = useRouter();
@@ -38,38 +39,27 @@ const statusTitle = ref('正在完成统一身份认证');
 const errorMsg = ref('');
 
 const handleCallback = async () => {
-  const code = route.query.code as string;
-  const state = route.query.state as string;
-  const error = route.query.error as string;
-  const errorDescription = route.query.error_description as string;
+  const transaction = consumeSsoCallbackTransaction(route.query, sessionStorage);
+  const error = route.query.error;
+  const errorDescription = route.query.error_description;
 
-  if (error) {
+  if (transaction.status === 'oauth-error') {
     loading.value = false;
     statusTitle.value = '认证失败';
-    errorMsg.value = errorDescription || error || '统一身份认证失败';
+    errorMsg.value = (typeof errorDescription === 'string' && errorDescription) || (typeof error === 'string' && error) || '统一身份认证失败';
+    return;
+  }
+
+  if (transaction.status === 'invalid-transaction') {
+    loading.value = false;
+    statusTitle.value = '认证失败';
+    errorMsg.value = '认证状态已失效或存在跨站风险，请重新登录';
     return;
   }
 
   // 凭 Keycloak 授权码 code 兑换 Token
-  if (code) {
-    const savedState = sessionStorage.getItem('sso_state');
-    sessionStorage.removeItem('sso_state');
-    if (state && savedState && state !== savedState) {
-      loading.value = false;
-      statusTitle.value = '认证失败';
-      errorMsg.value = '认证状态已失效或存在跨站风险，请重新登录';
-      return;
-    }
-
-    const codeVerifier = sessionStorage.getItem('sso_code_verifier') || '';
-    const nonce = sessionStorage.getItem('sso_nonce') || '';
-    const savedCallbackUrl = sessionStorage.getItem('sso_callback_url');
-    sessionStorage.removeItem('sso_code_verifier');
-    sessionStorage.removeItem('sso_nonce');
-    sessionStorage.removeItem('sso_callback_url');
-
-    // 优先取登录发起时记录的准确回调地址，确保与 Keycloak 发起时 100% 一致 (适配子路径部署)
-    const redirectUri = savedCallbackUrl || (window.location.origin + window.location.pathname);
+  if (transaction.status === 'ready') {
+    const { code, codeVerifier, redirectUri, nonce } = transaction.params;
 
     try {
       statusTitle.value = '正在兑换会话凭证...';
@@ -101,7 +91,7 @@ const handleCallback = async () => {
       loading.value = false;
       statusTitle.value = '统一认证登录失败';
       errorMsg.value = err?.message || '授权码兑换失败或已失效，请重新登录';
-      console.error('SSO callback code exchange failed:', err);
+      // 不打印请求异常对象，避免其中的授权码和 PKCE 凭据进入浏览器控制台。
       return;
     }
   }
