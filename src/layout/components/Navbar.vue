@@ -176,7 +176,7 @@ const logout = async () => {
     type: 'warning'
   } as ElMessageBoxOptions);
   await userStore.logout();
-  if (import.meta.env.VITE_APP_SSO_ENABLED !== 'true') {
+  if (import.meta.env.VITE_APP_KEYCLOAK_ENABLED !== 'true') {
     router.replace({
       path: '/login',
       query: {

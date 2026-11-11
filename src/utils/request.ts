@@ -131,7 +131,7 @@ service.interceptors.response.use(
       return res.data;
     }
     if (code === 401) {
-      if (import.meta.env.VITE_APP_SSO_ENABLED === 'true') {
+      if (import.meta.env.VITE_APP_KEYCLOAK_ENABLED === 'true') {
         const { startSsoLogin } = await import('@/utils/sso');
         const { removeToken } = await import('@/utils/auth');
         removeToken();
@@ -175,7 +175,7 @@ service.interceptors.response.use(
     }
   },
   async (error: any) => {
-    if (error.response?.status === 401 && import.meta.env.VITE_APP_SSO_ENABLED === 'true') {
+    if (error.response?.status === 401 && import.meta.env.VITE_APP_KEYCLOAK_ENABLED === 'true') {
       const { startSsoLogin } = await import('@/utils/sso');
       const { removeToken } = await import('@/utils/auth');
       removeToken();

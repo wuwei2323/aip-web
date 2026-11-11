@@ -92,7 +92,7 @@ export const useUserStore = defineStore('user', () => {
 
   // 注销
   const logout = async (): Promise<void> => {
-    if (import.meta.env.VITE_APP_SSO_ENABLED === 'true') {
+    if (import.meta.env.VITE_APP_KEYCLOAK_ENABLED === 'true') {
       const { logoutSso } = await import('@/utils/sso');
       await logoutSso();
     } else {

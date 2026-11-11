@@ -31,45 +31,49 @@
 
       <el-divider content-position="left">权限配置</el-divider>
 
-      <!-- 应用切换 -->
-      <div v-if="appTabs.length" class="mb-4 pb-3 border-b border-gray-200">
-        <div class="inline-flex flex-wrap gap-1 rounded border border-gray-300 p-0.5 bg-gray-50">
-          <button
-            v-for="tab in appTabs"
-            :key="tab.appId"
-            type="button"
-            class="px-4 py-1.5 text-xs font-medium rounded transition-colors"
-            :class="activeTenantId === tab.appId ? 'bg-primary text-white shadow-sm' : 'text-gray-700 hover:text-primary'"
-            @click="handleAppTabChange(tab.appId)"
-          >
-            {{ tab.appName }}
-          </button>
-        </div>
-      </div>
-
-      <div v-if="activeConfig">
+      <div>
         <!-- 菜单权限 -->
         <div class="mb-4">
-          <div class="font-bold text-sm text-gray-700 mb-2 flex items-center justify-between">
-            <span>菜单权限</span>
+          <div class="font-bold text-sm text-gray-700 mb-2">菜单权限</div>
+          <div class="mb-3 flex items-center justify-between">
+            <el-radio-group v-model="activeMenuGroup" @change="handleMenuGroupChange">
+              <el-radio-button v-for="g in menuGroups" :key="g.value" :value="g.value">
+                {{ g.label }}
+              </el-radio-button>
+            </el-radio-group>
             <div class="text-xs flex items-center gap-2">
-              <el-checkbox v-model="menuExpand" @change="handleCheckedTreeExpand($event, 'menu')">展开/折叠</el-checkbox>
-              <el-checkbox v-model="menuNodeAll" @change="handleCheckedTreeNodeAll($event, 'menu')">全选/全不选</el-checkbox>
-              <el-checkbox v-model="form.menuCheckStrictly" @change="handleCheckedTreeConnect($event, 'menu')">父子联动</el-checkbox>
-              <el-tag size="small" type="info">已选中 {{ menuCheckedCount }} 项</el-tag>
+              <el-checkbox v-model="currentMenuExpand" @change="handleCheckedTreeExpand($event, 'menu')">展开/折叠</el-checkbox>
+              <el-checkbox v-model="currentMenuNodeAll" @change="handleCheckedTreeNodeAll($event, 'menu')">全选/全不选</el-checkbox>
+              <el-checkbox v-model="baseForm.menuCheckStrictly" @change="handleCheckedTreeConnect($event, 'menu')">父子联动</el-checkbox>
+              <el-tag size="small" type="info" :title="`全部菜单已选 ${totalMenuCheckedCount} 项`"> 已选中 {{ currentGroupCheckedCount }} 项 </el-tag>
             </div>
           </div>
-          <el-tree
-            ref="menuRef"
-            class="tree-border"
-            :data="menuOptions"
-            show-checkbox
-            node-key="id"
-            :check-strictly="!form.menuCheckStrictly"
-            empty-text="加载中，请稍候"
-            :props="{ label: 'label', children: 'children' } as any"
-            @check="refreshMenuCount"
-          />
+          <div v-show="activeMenuGroup === 2">
+            <el-tree
+              ref="menuRefGroup2"
+              class="tree-border"
+              :data="group2MenuOptions"
+              show-checkbox
+              node-key="id"
+              :check-strictly="!baseForm.menuCheckStrictly"
+              empty-text="暂无数据"
+              :props="{ label: 'label', children: 'children' } as any"
+              @check="refreshMenuCount"
+            />
+          </div>
+          <div v-show="activeMenuGroup === 1">
+            <el-tree
+              ref="menuRefGroup1"
+              class="tree-border"
+              :data="group1MenuOptions"
+              show-checkbox
+              node-key="id"
+              :check-strictly="!baseForm.menuCheckStrictly"
+              empty-text="暂无数据"
+              :props="{ label: 'label', children: 'children' } as any"
+              @check="refreshMenuCount"
+            />
+          </div>
         </div>
 
         <el-divider />
@@ -80,36 +84,54 @@
             <span>数据权限</span>
             <el-tag v-if="form.dataScope === '2'" size="small" type="info">已选中 {{ deptCheckedCount }} 项</el-tag>
           </div>
-          <el-form-item label="数据范围" label-width="90px">
-            <el-select v-model="form.dataScope" style="width: 100%" @change="dataScopeSelectChange">
-              <el-option v-for="item in dataScopeOptions" :key="item.value" :label="item.label" :value="item.value" />
-            </el-select>
-          </el-form-item>
-          <div v-show="form.dataScope === '2'" class="mt-2 pl-2">
-            <div class="text-xs mb-1 flex items-center gap-2">
-              <el-checkbox v-model="deptExpand" @change="handleCheckedTreeExpand($event, 'dept')">展开/折叠</el-checkbox>
-              <el-checkbox v-model="deptNodeAll" @change="handleCheckedTreeNodeAll($event, 'dept')">全选/全不选</el-checkbox>
-              <el-checkbox v-model="form.deptCheckStrictly" @change="handleCheckedTreeConnect($event, 'dept')">父子联动</el-checkbox>
+          <!-- 应用切换 -->
+          <div v-if="appTabs.length" class="mb-4 pb-3 border-b border-gray-200">
+            <div class="inline-flex flex-wrap gap-1 rounded border border-gray-300 p-0.5 bg-gray-50">
+              <button
+                v-for="tab in appTabs"
+                :key="tab.appId"
+                type="button"
+                class="px-4 py-1.5 text-xs font-medium rounded transition-colors"
+                :class="activeTenantId === tab.appId ? 'bg-primary text-white shadow-sm' : 'text-gray-700 hover:text-primary'"
+                @click="handleAppTabChange(tab.appId)"
+              >
+                {{ tab.appName }}
+              </button>
             </div>
-            <el-tree
-              ref="deptRef"
-              class="tree-border"
-              :data="deptOptions"
-              show-checkbox
-              default-expand-all
-              node-key="id"
-              :check-strictly="!form.deptCheckStrictly"
-              empty-text="加载中，请稍候"
-              :props="{ label: 'label', children: 'children' } as any"
-              @check="refreshDeptCount"
-            />
           </div>
+          <template v-if="activeConfig">
+            <el-form-item label="数据范围" label-width="90px">
+              <el-select v-model="form.dataScope" style="width: 100%" @change="dataScopeSelectChange">
+                <el-option v-for="item in dataScopeOptions" :key="item.value" :label="item.label" :value="item.value" />
+              </el-select>
+            </el-form-item>
+            <div v-show="form.dataScope === '2'" class="mt-2 pl-2">
+              <div class="text-xs mb-1 flex items-center gap-2">
+                <el-checkbox v-model="deptExpand" @change="handleCheckedTreeExpand($event, 'dept')">展开/折叠</el-checkbox>
+                <el-checkbox v-model="deptNodeAll" @change="handleCheckedTreeNodeAll($event, 'dept')">全选/全不选</el-checkbox>
+                <el-checkbox v-model="form.deptCheckStrictly" @change="handleCheckedTreeConnect($event, 'dept')">父子联动</el-checkbox>
+              </div>
+              <el-tree
+                ref="deptRef"
+                class="tree-border"
+                :data="deptOptions"
+                show-checkbox
+                default-expand-all
+                node-key="id"
+                :check-strictly="!form.deptCheckStrictly"
+                empty-text="加载中，请稍候"
+                :props="{ label: 'label', children: 'children' } as any"
+                @check="refreshDeptCount"
+              />
+            </div>
+          </template>
+          <el-empty v-else-if="!loading" description="暂无可配置的应用数据权限" />
         </div>
 
         <el-divider />
 
         <!-- 自定义权限 -->
-        <div>
+        <div v-if="activeConfig">
           <div class="font-bold text-sm text-gray-700 mb-2">自定义权限</div>
           <div v-if="!currentTenantDicts.length" class="text-xs text-gray-400 py-4 text-center">
             当前应用【{{ currentTenantName }}】暂无角色类字典配置
@@ -168,8 +190,6 @@
           </div>
         </div>
       </div>
-
-      <el-empty v-else-if="!loading" description="暂无可配置的应用权限" />
     </div>
 
     <template #footer>
@@ -182,6 +202,8 @@
 </template>
 
 <script setup name="RoleEditDrawer" lang="ts">
+import { roleMenuTreeselect, treeselect } from '@/api/system/menu';
+import { MenuTreeOption } from '@/api/system/menu/types';
 import { addRole, deptTreeSelect, getRole, getRoleAppConfigs, getRoleAppConfigTemplate, getRoleDictConfig, updateRole } from '@/api/system/role';
 import {
   DeptTreeOption,
@@ -212,27 +234,77 @@ const baseForm = ref<RoleForm>(createEmptyForm());
 const appConfigs = ref<RoleAppConfigVo[]>([]);
 const dictConfigGroups = ref<RoleDictConfigGroup[]>([]);
 const activeTenantId = ref('');
-const menuOptions = ref<any[]>([]);
+const allMenuOptions = ref<MenuTreeOption[]>([]);
 const deptOptions = ref<DeptTreeOption[]>([]);
 const dictValueMap = ref<Record<string, any>>({});
 const dictCheckboxMap = ref<Record<string, any[]>>({});
 
-const menuExpand = ref(false);
-const menuNodeAll = ref(false);
+/** 菜单分组选项：2=集成平台 1=管理后台，参考菜单管理列表 */
+const menuGroups = [
+  { value: 2, label: '集成平台' },
+  { value: 1, label: '管理后台' }
+];
+const activeMenuGroup = ref<number>(1);
+const menuExpandMap = ref<Record<number, boolean>>({ 1: false, 2: false });
+const menuNodeAllMap = ref<Record<number, boolean>>({ 1: false, 2: false });
+const menuCheckedCountMap = ref<Record<number, number>>({ 1: 0, 2: 0 });
+
 const deptExpand = ref(true);
 const deptNodeAll = ref(false);
-const menuCheckedCount = ref(0);
 const deptCheckedCount = ref(0);
 
 const form = ref({
   dataScope: '1',
-  menuCheckStrictly: true,
   deptCheckStrictly: true
 });
 
 const baseFormRef = ref<ElFormInstance>();
-const menuRef = ref<ElTreeInstance>();
+const menuRefGroup1 = ref<ElTreeInstance>();
+const menuRefGroup2 = ref<ElTreeInstance>();
 const deptRef = ref<ElTreeInstance>();
+
+const currentMenuExpand = computed({
+  get: () => !!menuExpandMap.value[activeMenuGroup.value],
+  set: (val: boolean) => {
+    menuExpandMap.value[activeMenuGroup.value] = val;
+  }
+});
+
+const currentMenuNodeAll = computed({
+  get: () => !!menuNodeAllMap.value[activeMenuGroup.value],
+  set: (val: boolean) => {
+    menuNodeAllMap.value[activeMenuGroup.value] = val;
+  }
+});
+
+const currentGroupCheckedCount = computed(() => menuCheckedCountMap.value[activeMenuGroup.value] || 0);
+const totalMenuCheckedCount = computed(() => (menuCheckedCountMap.value[1] || 0) + (menuCheckedCountMap.value[2] || 0));
+
+function isGroup2Node(node: MenuTreeOption): boolean {
+  if (node.groupId !== undefined && node.groupId !== null) {
+    return Number(node.groupId) === 2;
+  }
+  if (node.children && node.children.length > 0) {
+    return node.children.some(isGroup2Node);
+  }
+  return false;
+}
+
+const group2MenuOptions = computed<MenuTreeOption[]>(() => {
+  return allMenuOptions.value.filter((node) => isGroup2Node(node));
+});
+
+const group1MenuOptions = computed<MenuTreeOption[]>(() => {
+  return allMenuOptions.value.filter((node) => !isGroup2Node(node));
+});
+
+function getCurrentMenuTree(): ElTreeInstance | undefined {
+  return activeMenuGroup.value === 2 ? menuRefGroup2.value : menuRefGroup1.value;
+}
+
+function getCurrentMenuRoots(): MenuTreeOption[] {
+  return activeMenuGroup.value === 2 ? group2MenuOptions.value : group1MenuOptions.value;
+}
 
 /** 数据范围选项 */
 const dataScopeOptions = [
@@ -295,9 +367,7 @@ function normalizeAppConfig(cfg: RoleAppConfigVo): RoleAppConfigVo {
     appId,
     tenantId: appId,
     dataScope: cfg.dataScope || '1',
-    menuCheckStrictly: cfg.menuCheckStrictly ?? true,
     deptCheckStrictly: cfg.deptCheckStrictly ?? true,
-    menuIds: cfg.menuIds || [],
     deptIds: cfg.deptIds || []
   };
 }
@@ -307,16 +377,17 @@ function resetState() {
   appConfigs.value = [];
   dictConfigGroups.value = [];
   activeTenantId.value = '';
-  menuOptions.value = [];
+  allMenuOptions.value = [];
   deptOptions.value = [];
   dictValueMap.value = {};
   dictCheckboxMap.value = {};
-  form.value = { dataScope: '1', menuCheckStrictly: true, deptCheckStrictly: true };
-  menuExpand.value = false;
-  menuNodeAll.value = false;
+  form.value = { dataScope: '1', deptCheckStrictly: true };
+  activeMenuGroup.value = 1;
+  menuExpandMap.value = { 1: false, 2: false };
+  menuNodeAllMap.value = { 1: false, 2: false };
+  menuCheckedCountMap.value = { 1: 0, 2: 0 };
   deptExpand.value = true;
   deptNodeAll.value = false;
-  menuCheckedCount.value = 0;
   deptCheckedCount.value = 0;
 }
 
@@ -329,8 +400,9 @@ const open = async (roleId?: string | number) => {
   loaded.value = false;
   try {
     if (isEdit.value) {
-      const [roleRes, deptRes, appRes, dictRes] = await Promise.all([
+      const [roleRes, menuRes, deptRes, appRes, dictRes] = await Promise.all([
         getRole(roleId as string | number),
+        roleMenuTreeselect(roleId as string | number),
         deptTreeSelect(roleId as string | number),
         getRoleAppConfigs(roleId as string | number),
         getRoleDictConfig(roleId as string | number)
@@ -346,21 +418,28 @@ const open = async (roleId?: string | number) => {
         remark: role.remark,
         dataScope: role.dataScope,
         menuCheckStrictly: role.menuCheckStrictly,
+        menuIds: menuRes.data.checkedKeys || [],
         deptCheckStrictly: role.deptCheckStrictly
       };
+      allMenuOptions.value = menuRes.data.menus || [];
       deptOptions.value = deptRes.data.depts || [];
       appConfigs.value = (appRes.data || []).map(normalizeAppConfig);
       dictConfigGroups.value = dictRes.data || [];
     } else {
-      const res = await getRoleAppConfigTemplate();
+      const [res, menuRes] = await Promise.all([getRoleAppConfigTemplate(), treeselect()]);
       const template = res.data as RoleEditTemplate;
       baseForm.value = createEmptyForm();
+      allMenuOptions.value = menuRes.data || [];
       deptOptions.value = template.deptTree || [];
       appConfigs.value = (template.appConfigs || []).map(normalizeAppConfig);
       dictConfigGroups.value = template.dictConfigs || [];
     }
 
     initDictMaps();
+    await nextTick();
+    menuRefGroup1.value?.setCheckedKeys(baseForm.value.menuIds);
+    menuRefGroup2.value?.setCheckedKeys(baseForm.value.menuIds);
+    refreshMenuCount();
 
     if (appConfigs.value.length) {
       activeTenantId.value = getAppId(appConfigs.value[0]);
@@ -404,28 +483,22 @@ function initDictMaps() {
 function syncActiveApp() {
   const cfg = activeConfig.value;
   if (!cfg) return;
-  cfg.menuIds = getMenuAllCheckedKeys() || [];
   cfg.deptIds = form.value.dataScope === '2' ? getDeptAllCheckedKeys() || [] : [];
   cfg.dataScope = form.value.dataScope || '1';
-  cfg.menuCheckStrictly = form.value.menuCheckStrictly;
   cfg.deptCheckStrictly = form.value.deptCheckStrictly;
 }
 
 /** 从当前应用配置恢复界面展示 */
 async function restoreActiveApp() {
   const cfg = activeConfig.value;
-  menuOptions.value = cfg?.menuTree || [];
   form.value.dataScope = cfg?.dataScope || '1';
-  form.value.menuCheckStrictly = cfg?.menuCheckStrictly ?? true;
   form.value.deptCheckStrictly = cfg?.deptCheckStrictly ?? true;
   await nextTick();
-  menuRef.value?.setCheckedKeys(cfg?.menuIds || []);
   deptRef.value?.setCheckedKeys(cfg?.deptIds || []);
-  refreshMenuCount();
   refreshDeptCount();
 }
 
-/** 切换顶部应用 Tab */
+/** 切换数据权限应用 Tab */
 async function handleAppTabChange(appId: string) {
   if (activeTenantId.value === appId) return;
   syncActiveApp();
@@ -433,9 +506,14 @@ async function handleAppTabChange(appId: string) {
   await restoreActiveApp();
 }
 
+async function handleMenuGroupChange() {
+  await nextTick();
+  refreshMenuCount();
+}
+
 function handleCheckedTreeExpand(value: any, type: 'menu' | 'dept') {
-  const tree = type === 'menu' ? menuRef.value : deptRef.value;
-  const roots = type === 'menu' ? menuOptions.value : deptOptions.value;
+  const tree = type === 'menu' ? getCurrentMenuTree() : deptRef.value;
+  const roots = type === 'menu' ? getCurrentMenuRoots() : deptOptions.value;
   const nodesMap = (tree as any)?.store?.nodesMap;
   if (!nodesMap) return;
   for (const node of roots) {
@@ -446,8 +524,8 @@ function handleCheckedTreeExpand(value: any, type: 'menu' | 'dept') {
 }
 
 function handleCheckedTreeNodeAll(value: any, type: 'menu' | 'dept') {
-  const tree = type === 'menu' ? menuRef.value : deptRef.value;
-  const roots = type === 'menu' ? menuOptions.value : deptOptions.value;
+  const tree = type === 'menu' ? getCurrentMenuTree() : deptRef.value;
+  const roots = type === 'menu' ? getCurrentMenuRoots() : deptOptions.value;
   tree?.setCheckedNodes(value ? (roots as any) : []);
   if (type === 'menu') {
     refreshMenuCount();
@@ -458,7 +536,7 @@ function handleCheckedTreeNodeAll(value: any, type: 'menu' | 'dept') {
 
 function handleCheckedTreeConnect(value: any, type: 'menu' | 'dept') {
   if (type === 'menu') {
-    form.value.menuCheckStrictly = value;
+    baseForm.value.menuCheckStrictly = value;
   } else {
     form.value.deptCheckStrictly = value;
   }
@@ -472,17 +550,20 @@ function dataScopeSelectChange(value: string) {
 }
 
 function refreshMenuCount() {
-  menuCheckedCount.value = menuRef.value?.getCheckedKeys()?.length || 0;
+  menuCheckedCountMap.value[1] = menuRefGroup1.value?.getCheckedKeys()?.length || 0;
+  menuCheckedCountMap.value[2] = menuRefGroup2.value?.getCheckedKeys()?.length || 0;
 }
 
 function refreshDeptCount() {
   deptCheckedCount.value = deptRef.value?.getCheckedKeys()?.length || 0;
 }
 
-function getMenuAllCheckedKeys(): any {
-  const checkedKeys = menuRef.value?.getCheckedKeys() || [];
-  const halfCheckedKeys = menuRef.value?.getHalfCheckedKeys() || [];
-  return [...halfCheckedKeys, ...checkedKeys];
+function getMenuAllCheckedKeys(): any[] {
+  const checked1 = menuRefGroup1.value?.getCheckedKeys() || [];
+  const half1 = menuRefGroup1.value?.getHalfCheckedKeys() || [];
+  const checked2 = menuRefGroup2.value?.getCheckedKeys() || [];
+  const half2 = menuRefGroup2.value?.getHalfCheckedKeys() || [];
+  return Array.from(new Set([...checked1, ...half1, ...checked2, ...half2]));
 }
 
 function getDeptAllCheckedKeys(): any {
@@ -498,9 +579,7 @@ function buildPayload(): RoleForm {
     tenantId: getAppId(cfg),
     appId: getAppId(cfg),
     dataScope: cfg.dataScope || '1',
-    menuCheckStrictly: cfg.menuCheckStrictly ?? true,
     deptCheckStrictly: cfg.deptCheckStrictly ?? true,
-    menuIds: cfg.menuIds || [],
     deptIds: cfg.deptIds || []
   }));
 
@@ -519,7 +598,6 @@ function buildPayload(): RoleForm {
         fieldValue = val === undefined || val === null ? '' : String(val);
       }
       dictValues.push({
-        tenantId: appId,
         appId,
         dictId: item.dictId,
         fieldKey: item.fieldKey || item.component?.fieldKey,
@@ -531,7 +609,7 @@ function buildPayload(): RoleForm {
   const payload: RoleForm = {
     ...baseForm.value,
     dataScope: defaultCfg?.dataScope || baseForm.value.dataScope || '1',
-    menuCheckStrictly: defaultCfg?.menuCheckStrictly ?? true,
+    menuIds: getMenuAllCheckedKeys(),
     deptCheckStrictly: defaultCfg?.deptCheckStrictly ?? true,
     appConfigs: appConfigsBo,
     dictValues

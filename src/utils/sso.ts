@@ -11,7 +11,7 @@ const SESSION_CHECK_INTERVAL = 3000; // 3秒防抖
  * 判断是否开启 SSO
  */
 export function isSsoEnabled(): boolean {
-  return import.meta.env.VITE_APP_SSO_ENABLED === 'true';
+  return import.meta.env.VITE_APP_KEYCLOAK_ENABLED === 'true';
 }
 
 /**
@@ -112,10 +112,9 @@ export async function startSsoLogin(redirect?: string): Promise<void> {
 
   try {
     const safeRedirect = sanitizeRedirect(redirect);
-    const keycloakUrl = import.meta.env.VITE_APP_KEYCLOAK_URL || 'http://192.168.3.82:8082';
-    const realm = import.meta.env.VITE_APP_KEYCLOAK_REALM || 'aip';
+    const issuerUri = import.meta.env.VITE_APP_KEYCLOAK_ISSUER_URI || 'http://192.168.3.82:8082/realms/aip';
     const clientId = import.meta.env.VITE_APP_KEYCLOAK_CLIENT_ID || '000000';
-    const callbackPath = import.meta.env.VITE_APP_SSO_CALLBACK_PATH || '/sso/callback';
+    const callbackPath = import.meta.env.VITE_APP_KEYCLOAK_FRONTEND_CALLBACK_PATH || '/sso/callback';
     const callbackUrl = window.location.origin + callbackPath;
 
     // 1. 生成防 CSRF state、防重放 nonce、PKCE verifier 与 challenge
@@ -139,7 +138,7 @@ export async function startSsoLogin(redirect?: string): Promise<void> {
     const clientDataStr = toBase64Url(JSON.stringify(clientDataObj));
 
     // 3. 构造标准 OIDC 授权地址并直接重定向 (包含强制 PKCE 与 Nonce)
-    const authUrl = new URL(`${keycloakUrl}/realms/${realm}/protocol/openid-connect/auth`);
+    const authUrl = new URL(`${issuerUri.replace(/\/$/, '')}/protocol/openid-connect/auth`);
     authUrl.searchParams.set('response_type', 'code');
     authUrl.searchParams.set('client_id', clientId);
     authUrl.searchParams.set('redirect_uri', callbackUrl);

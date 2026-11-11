@@ -38,7 +38,7 @@ export interface RoleQuery extends PageQuery {
 }
 
 export interface RoleDictValueItem {
-  tenantId: string;
+  tenantId?: string;
   appId?: string;
   dictId: number | string;
   fieldKey?: string;
