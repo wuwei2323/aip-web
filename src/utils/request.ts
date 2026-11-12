@@ -1,6 +1,6 @@
 import axios, { AxiosResponse, InternalAxiosRequestConfig } from 'axios';
 import { useUserStore } from '@/store/modules/user';
-import { getToken } from '@/utils/auth';
+import { getToken, removeToken } from '@/utils/auth';
 import { tansParams, blobValidate } from '@/utils/ruoyi';
 import cache from '@/plugins/cache';
 import { HttpStatus } from '@/enums/RespEnum';
@@ -103,6 +103,41 @@ service.interceptors.request.use(
   }
 );
 
+/**
+ * HTTP 与业务 401 共用的 SSO 边界；返回 true 时由调用方原样交还错误，不再弹出本地重登提示。
+ */
+async function handleSsoUnauthorized(config?: InternalAxiosRequestConfig): Promise<boolean> {
+  // 退出请求不能再次发起登录，否则会重新创建正在注销的会话。
+  // 回调换票失败由 callback.vue 展示，不能用新的授权跳转覆盖错误页。
+  const requestPath = (config?.url || '').split('?')[0];
+  if (['/auth/sso/logout', '/resource/sse/close', '/auth/sso/callback'].includes(requestPath)) {
+    return true;
+  }
+  if (import.meta.env.VITE_APP_KEYCLOAK_ENABLED !== 'true') {
+    return false;
+  }
+
+  const { isSsoNavigationPending, startSsoLogin } = await import('@/utils/sso');
+  const route = router.currentRoute.value;
+  // 动态导入完成后再检查，保留退出请求需要的 token，并保护已经落地的静态错误页。
+  if (
+    isSsoNavigationPending() ||
+    route?.path === '/sso/callback' ||
+    route?.path === import.meta.env.VITE_APP_KEYCLOAK_FRONTEND_CALLBACK_PATH ||
+    (route?.path === '/login' && route.query?.error)
+  ) {
+    return true;
+  }
+  // 其他标签可能已切换会话，旧请求的 401 只能交还调用方，不能清理当前 token 或重新认证。
+  const token = getToken();
+  if (config?.headers?.get('Authorization') !== (token ? `Bearer ${token}` : undefined)) {
+    return true;
+  }
+  removeToken();
+  await startSsoLogin(route?.fullPath || '/');
+  return true;
+}
+
 // 响应拦截器
 service.interceptors.response.use(
   async (res: AxiosResponse) => {
@@ -131,13 +166,8 @@ service.interceptors.response.use(
       return res.data;
     }
     if (code === 401) {
-      if (import.meta.env.VITE_APP_KEYCLOAK_ENABLED === 'true') {
-        const { startSsoLogin } = await import('@/utils/sso');
-        const { removeToken } = await import('@/utils/auth');
-        removeToken();
-        const currentPath = router.currentRoute.value?.fullPath || '/';
-        await startSsoLogin(currentPath);
-        return Promise.reject('会话已失效，正在跳转统一认证...');
+      if (await handleSsoUnauthorized(res.config)) {
+        return Promise.reject(new Error(msg));
       }
       // prettier-ignore
       if (!isRelogin.show) {
@@ -175,13 +205,8 @@ service.interceptors.response.use(
     }
   },
   async (error: any) => {
-    if (error.response?.status === 401 && import.meta.env.VITE_APP_KEYCLOAK_ENABLED === 'true') {
-      const { startSsoLogin } = await import('@/utils/sso');
-      const { removeToken } = await import('@/utils/auth');
-      removeToken();
-      const currentPath = router.currentRoute.value?.fullPath || '/';
-      startSsoLogin(currentPath);
-      return Promise.reject('会话已失效，正在跳转统一认证...');
+    if (error.response?.status === 401 && (await handleSsoUnauthorized(error.config))) {
+      return Promise.reject(error);
     }
     let { message } = error;
     if (message == 'Network Error') {

@@ -4,8 +4,17 @@ import { useUserStore } from '@/store/modules/user';
 import CryptoJS from 'crypto-js';
 
 let isRedirecting = false;
+// 仅在当前页面内阻止退出期间重新认证；完整页面跳转后自然重置，不影响用户再次登录。
+let isLoggingOut = false;
 let lastCheckTime = 0;
 const SESSION_CHECK_INTERVAL = 3000; // 3秒防抖
+
+/**
+ * 当前页面是否已开始认证跳转或统一退出，供拦截器与路由守卫避免重复导航。
+ */
+export function isSsoNavigationPending(): boolean {
+  return isRedirecting || isLoggingOut;
+}
 
 /**
  * 判断是否开启 SSO
@@ -71,19 +80,13 @@ export async function calculateCodeChallenge(verifier: string): Promise<string> 
       for (let i = 0; i < bytes.byteLength; i++) {
         binary += String.fromCharCode(bytes[i]);
       }
-      return btoa(binary)
-        .replace(/\+/g, '-')
-        .replace(/\//g, '_')
-        .replace(/=+$/, '');
+      return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
     } catch (e) {
       console.warn('Web Crypto digest failed, fallback to crypto-js', e);
     }
   }
   const hash = CryptoJS.SHA256(verifier);
-  return hash.toString(CryptoJS.enc.Base64)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+  return hash.toString(CryptoJS.enc.Base64).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 /**
@@ -95,17 +98,14 @@ function toBase64Url(str: string): string {
   for (let i = 0; i < utf8Bytes.length; i++) {
     binary += String.fromCharCode(utf8Bytes[i]);
   }
-  return btoa(binary)
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 /**
  * 发起 SSO 登录重定向 (SPA 前端直接构造并跳转 Keycloak)
  */
 export async function startSsoLogin(redirect?: string): Promise<void> {
-  if (isRedirecting) {
+  if (isSsoNavigationPending()) {
     return;
   }
   isRedirecting = true;
@@ -122,6 +122,10 @@ export async function startSsoLogin(redirect?: string): Promise<void> {
     const nonce = generateRandomString(32);
     const codeVerifier = generateRandomString(64);
     const codeChallenge = await calculateCodeChallenge(codeVerifier);
+    // PKCE 计算期间可能已开始退出，不能再写入认证事务或离开退出流程。
+    if (isLoggingOut) {
+      return;
+    }
 
     sessionStorage.setItem('sso_state', state);
     sessionStorage.setItem('sso_nonce', nonce);
@@ -161,7 +165,8 @@ export async function startSsoLogin(redirect?: string): Promise<void> {
  * 页面可见性探活 (焦点探活 / visibilitychange)
  */
 export async function checkSsoSessionDebounced(): Promise<boolean> {
-  if (!isSsoEnabled() || !getToken()) {
+  const token = getToken();
+  if (isSsoNavigationPending() || !isSsoEnabled() || !token) {
     return false;
   }
 
@@ -173,6 +178,10 @@ export async function checkSsoSessionDebounced(): Promise<boolean> {
 
   try {
     const res = await checkSsoSession();
+    // 探活返回时会话可能已切换，旧结果不能清掉新 token 或覆盖已开始的登录/退出。
+    if (isSsoNavigationPending() || getToken() !== token) {
+      return false;
+    }
     if (!res || !res.data) {
       console.warn('SSO 会话探活失败，准备重新发起认证');
       removeToken();
@@ -181,6 +190,9 @@ export async function checkSsoSessionDebounced(): Promise<boolean> {
     }
     return true;
   } catch (error) {
+    if (isSsoNavigationPending() || getToken() !== token) {
+      return false;
+    }
     console.warn('SSO 会话已失效:', error);
     removeToken();
     await startSsoLogin(window.location.pathname + window.location.search);
@@ -192,20 +204,20 @@ export async function checkSsoSessionDebounced(): Promise<boolean> {
  * SSO 全局退出登录
  */
 export async function logoutSso(): Promise<void> {
+  if (isLoggingOut) {
+    return;
+  }
+  // 必须先标记退出，再发送带现有 token 的请求；完成后才清理本地会话并离开页面。
+  isLoggingOut = true;
+  let target = '/login?error=logout_unconfirmed';
   try {
-    const postLogoutRedirectUri = window.location.origin + '/login?logout=true';
-    const res = await getSsoLogoutUrl(postLogoutRedirectUri);
-    const userStore = useUserStore();
-    userStore.cleanSession();
-    removeToken();
-    if (res && res.data && res.data.logoutUrl) {
-      window.location.href = res.data.logoutUrl;
-    } else {
-      window.location.href = '/login?logout=true';
+    const res = await getSsoLogoutUrl();
+    if (res?.data?.logoutUrl) {
+      target = res.data.logoutUrl;
     }
   } catch (error) {
     console.error('SSO 登出异常:', error);
-    removeToken();
-    window.location.href = '/login?logout=true';
   }
+  useUserStore().cleanSession();
+  window.location.href = target;
 }

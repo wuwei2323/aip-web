@@ -14,6 +14,10 @@ export default {
     code: '验证码',
     rememberPassword: '记住我',
     switchRegisterPage: '立即注册',
+    retrySsoLogin: '重新发起统一认证登录',
+    retrySsoLogout: '重试统一退出',
+    ssoLogoutUnconfirmedTitle: '统一退出尚未确认',
+    ssoLogoutUnconfirmedMessage: '本地会话已清理，但统一退出尚未确认。请重试统一退出，完成后再重新登录。',
     rule: {
       tenantId: {
         required: '请输入您的租户编号'
@@ -68,6 +72,10 @@ export default {
         equalToPassword: '两次输入的密码不一致'
       }
     }
+  },
+  application: {
+    entryUrlHint: '正常应用入口，用于统一退出页的“重新登录”；不要填写授权码回调或旧退出页面。',
+    backchannelLogoutHint: '要跟随统一退出，子应用须实现并登记此后端接口，由认证服务器调用以销毁本地会话。'
   },
   // 导航栏国际化
   navbar: {

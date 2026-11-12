@@ -164,6 +164,7 @@
         </el-form-item>
         <el-form-item label="访问地址" prop="entryUrl">
           <el-input v-model="form.entryUrl" placeholder="如 https://wx.example.com" />
+          <div class="text-xs text-gray-500">{{ proxy.$t('application.entryUrlHint') }}</div>
         </el-form-item>
         <el-form-item label="简介" prop="description">
           <el-input
@@ -184,12 +185,9 @@
             placeholder="允许的登录回调URI列表，多个以换行分隔，如 https://wx.example.com/oauth/callback"
           />
         </el-form-item>
-        <el-form-item label="退出后返回" prop="postLogoutRedirectUri">
-          <el-input v-model="form.postLogoutRedirectUri" :maxlength="500" placeholder="可选：退出后的完整前端地址" />
-        </el-form-item>
         <el-form-item label="统一退出通知" prop="backchannelLogoutUri">
           <el-input v-model="form.backchannelLogoutUri" :maxlength="500" placeholder="子应用提供、认证服务器可访问的后端地址" />
-          <div class="text-xs text-gray-500">要跟随平台退出，子应用须实现并登记此接口；与浏览器退出回跳地址不同。</div>
+          <div class="text-xs text-gray-500">{{ proxy.$t('application.backchannelLogoutHint') }}</div>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -305,7 +303,6 @@ const initFormData: ApplicationForm = {
   icon: '',
   entryUrl: '',
   redirectUris: '',
-  postLogoutRedirectUri: '',
   backchannelLogoutUri: '',
   status: '0'
 };
@@ -328,7 +325,6 @@ const data = reactive<PageData<ApplicationForm, ApplicationQuery>>({
     description: [{ required: true, message: '应用简介不能为空', trigger: 'blur' }],
     icon: [{ required: true, message: '应用图标不能为空', trigger: 'change' }],
     redirectUris: [{ required: true, message: '登录回调地址不能为空', trigger: 'blur' }],
-    postLogoutRedirectUri: [{ validator: validateOptionalUri, trigger: 'blur' }],
     backchannelLogoutUri: [{ validator: validateOptionalUri, trigger: 'blur' }]
   }
 });
@@ -416,7 +412,6 @@ const handleUpdate = async (row?: ApplicationVO) => {
     icon: res.data.icon,
     entryUrl: res.data.entryUrl,
     status: res.data.status,
-    postLogoutRedirectUri: res.data.postLogoutRedirectUri,
     backchannelLogoutUri: res.data.backchannelLogoutUri,
     redirectUris: formatRedirectUrisForEdit(res.data.redirectUris)
   };

@@ -9,7 +9,8 @@ import { useUserStore } from '@/store/modules/user';
 import { useSettingsStore } from '@/store/modules/settings';
 import { usePermissionStore } from '@/store/modules/permission';
 import { ElMessage } from 'element-plus/es';
-import { isSsoEnabled, startSsoLogin, checkSsoSessionDebounced } from '@/utils/sso';
+import { isSsoEnabled, isSsoNavigationPending, startSsoLogin, checkSsoSessionDebounced } from '@/utils/sso';
+import { errorCode } from '@/utils/errorCode';
 
 NProgress.configure({ showSpinner: false });
 const whiteList = ['/login', '/register', '/social-callback', '/register*', '/register/*', '/sso/callback', '/sso/change-password', '/sso/*'];
@@ -46,6 +47,23 @@ router.beforeEach(async (to, from, next) => {
           // 判断当前用户是否已拉取完user_info信息
           const [err] = await tos(useUserStore().getInfo());
           if (err) {
+            isRelogin.show = false;
+            if (isSsoEnabled()) {
+              // 401 拦截器已开始认证，或用户正在退出时，不再清理状态或发起第二次导航。
+              if (isSsoNavigationPending()) {
+                next(false);
+              } else {
+                // 资料加载失败不等于用户退出；仅清理本地会话，停在可手动重试的错误页，避免守卫循环。
+                useUserStore().cleanSession();
+                next({
+                  path: '/login',
+                  query: { error: 'user_info_failed', error_description: err.message || errorCode['default'] },
+                  replace: true
+                });
+              }
+              NProgress.done();
+              return;
+            }
             await useUserStore().logout();
             ElMessage.error(err);
             next({ path: '/' });

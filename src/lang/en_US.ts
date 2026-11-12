@@ -14,6 +14,10 @@ export default {
     code: 'Verification Code',
     rememberPassword: 'Remember me',
     switchRegisterPage: 'Sign up now',
+    retrySsoLogin: 'Retry single sign-on',
+    retrySsoLogout: 'Retry single sign-out',
+    ssoLogoutUnconfirmedTitle: 'Single sign-out is not confirmed',
+    ssoLogoutUnconfirmedMessage: 'The local session has been cleared, but single sign-out is not confirmed. Retry sign-out before logging in again.',
     rule: {
       tenantId: {
         required: 'Please enter your tenant id'
@@ -68,6 +72,10 @@ export default {
         equalToPassword: 'The password entered twice is inconsistent'
       }
     }
+  },
+  application: {
+    entryUrlHint: 'Use the normal application entry for Log In Again. Do not enter an authorization callback or an old logout page.',
+    backchannelLogoutHint: 'Register the application backend endpoint called by the identity server to invalidate its local sessions.'
   },
   // 导航栏国际化
   navbar: {
